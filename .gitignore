@@ -39,3 +39,6 @@ desktop.ini
 
 # --- Misc ---
 *.xlsx
+
+# --- Dati di runtime (log eventi JSONL e listoni caricati) ---
+dati/
