@@ -22,6 +22,17 @@
     var vista = null;            // 'attesa' | 'codice-assente' | 'asta'
     var statoAreaLotto = null;   // idLotto con skeleton in DOM, 'vuoto', oppure null
 
+    // Countdown scalato localmente solo per l'animazione: il tempo autorevole e' quello
+    // del server. A ogni snapshot ci si riallinea fissando l'istante di scadenza locale
+    // (adesso + secondiResidui); tra uno snapshot e l'altro si mostra ceil((scadenza -
+    // adesso)/1000), stessa semantica del server. Il refresh e' piu' fitto di un secondo
+    // (ogni CADENZA_COUNTDOWN ms) cosi' il numero cambia a ridosso del secondo reale e la
+    // coda 2 -> 1 -> scaduto non ha beat di troppo. Si aggiorna in posto il solo nodo
+    // #countdown (mai l'input importo, che non deve perdere focus ne' testo).
+    var CADENZA_COUNTDOWN = 250;
+    var statoLottoCorrente = null;    // stato del lotto per decidere se il countdown scorre
+    var istanteScadenzaLocale = 0;    // epoch ms stimato di scadenza, per la sola animazione
+
     function el(id) {
         return document.getElementById(id);
     }
@@ -86,9 +97,11 @@
             '<div class="lotto-testa">' +
             '<span class="lotto-nome" id="lotto-nome"></span>' +
             '<span class="ruolo" id="lotto-ruolo"></span>' +
+            '<span class="countdown" id="countdown"></span>' +
             '</div>' +
             '<div class="lotto-dettagli" id="lotto-dettagli"></div>' +
             '<div class="lotto-offerta" id="area-offerta"></div>' +
+            '<div class="area-stato" id="area-stato"></div>' +
             '<div class="buzzer-rapidi" id="buzzer-rapidi"></div>' +
             '<div class="buzzer-libero">' +
             '<input id="importo-libero" type="number" inputmode="numeric" min="1" step="1" placeholder="Importo">' +
@@ -190,17 +203,107 @@
         el("p-crediti").textContent = "Crediti: " + partecipante.crediti;
 
         var lotto = snapshot.lotto;
-        if (lotto && lotto.stato === "APERTO") {
+        if (lotto) {
+            // Lo skeleton resta lo stesso per tutto il ciclo di vita del lotto, anche
+            // attraverso pausa e scadenza: cosi' l'input importo non viene ricreato.
             if (statoAreaLotto !== lotto.idLotto) {
                 costruisciLottoSkeleton(lotto.idLotto);
                 statoAreaLotto = lotto.idLotto;
             }
             aggiornaInfoCalciatore(lotto);
             aggiornaOfferta(lotto);
+            aggiornaStato(lotto);
         } else if (statoAreaLotto !== "vuoto") {
             el("area-lotto").innerHTML = '<div class="stato-attesa">Nessun lotto in corso</div>';
             statoAreaLotto = "vuoto";
+            statoLottoCorrente = null;
         }
+    }
+
+    // Riallinea il countdown al tempo del server e adegua stato dei buzzer e messaggi.
+    function aggiornaStato(lotto) {
+        statoLottoCorrente = lotto.stato;
+        istanteScadenzaLocale = Date.now() + lotto.secondiResidui * 1000;
+        scriviCountdown(lotto);
+
+        abilitaBuzzer(lotto.stato === "APERTO");
+
+        var nota = el("area-stato");
+        if (!nota) return;
+        if (lotto.stato === "SCADUTO") {
+            nota.className = "area-stato scaduto";
+            if (lotto.offertaCorrente != null) {
+                var off = trovaPartecipante(lotto.offerenteCorrente);
+                var nomeOff = off ? off.nome : lotto.offerenteCorrente;
+                var mia = lotto.offerenteCorrente === codice;
+                nota.textContent = "Tempo scaduto — " +
+                    (mia ? "sei in testa con " + lotto.offertaCorrente
+                         : "offerta vincente " + lotto.offertaCorrente + " di " + nomeOff) +
+                    ". In attesa del banditore.";
+            } else {
+                nota.textContent = "Tempo scaduto senza offerte. In attesa del banditore.";
+            }
+        } else if (lotto.stato === "AGGIUDICATO") {
+            nota.className = "area-stato aggiudicato";
+            if (lotto.offerenteCorrente === codice) {
+                nota.textContent = "Aggiudicato a te per " + lotto.offertaCorrente + ".";
+            } else {
+                var offA = trovaPartecipante(lotto.offerenteCorrente);
+                var nomeA = offA ? offA.nome : lotto.offerenteCorrente;
+                nota.textContent = "Aggiudicato a " + nomeA + " per " + lotto.offertaCorrente + ".";
+            }
+        } else if (lotto.stato === "IN_PAUSA") {
+            nota.className = "area-stato pausa";
+            nota.textContent = "Asta in pausa. Le offerte riprenderanno a breve.";
+        } else {
+            nota.className = "area-stato";
+            nota.textContent = "";
+        }
+    }
+
+    // Scrive il solo nodo #countdown: nessun altro elemento viene toccato.
+    function scriviCountdown(lotto) {
+        var elc = el("countdown");
+        if (!elc) return;
+        if (lotto.stato === "SCADUTO") {
+            elc.className = "countdown scaduto";
+            elc.textContent = "Scaduto";
+            return;
+        }
+        if (lotto.stato === "AGGIUDICATO") {
+            elc.className = "countdown aggiudicato";
+            elc.textContent = "Aggiudicato";
+            return;
+        }
+        if (lotto.stato === "IN_PAUSA") {
+            elc.className = "countdown pausa";
+            elc.textContent = lotto.secondiResidui + "s (in pausa)";
+            return;
+        }
+        var secondi = Math.max(0, Math.ceil((istanteScadenzaLocale - Date.now()) / 1000));
+        elc.className = "countdown";
+        elc.textContent = secondi + "s";
+    }
+
+    function abilitaBuzzer(aperto) {
+        var contenitore = el("buzzer-rapidi");
+        if (contenitore) {
+            var btns = contenitore.querySelectorAll(".btn-rapido");
+            for (var i = 0; i < btns.length; i++) btns[i].disabled = !aperto;
+        }
+        var input = el("importo-libero");
+        if (input) input.disabled = !aperto;
+        var btnOffri = el("btn-offri");
+        if (btnOffri) btnOffri.disabled = !aperto;
+    }
+
+    // Un solo timer per l'intera pagina: aggiorna il countdown a lotto aperto,
+    // riallineandosi a ogni snapshot. In pausa o scaduto il countdown resta fermo.
+    function tickCountdown() {
+        if (!snapshot || !snapshot.lotto) return;
+        if (statoAreaLotto !== snapshot.lotto.idLotto) return;
+        if (statoLottoCorrente !== "APERTO") return;
+        scriviCountdown(snapshot.lotto);
     }
 
     function inviaOfferta(idLotto, importo) {
@@ -261,6 +364,8 @@
     sse.onerror = function () {
         // EventSource riconnette automaticamente
     };
+
+    setInterval(tickCountdown, CADENZA_COUNTDOWN);
 
     render();
 })();

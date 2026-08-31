@@ -2,9 +2,11 @@ package fantasta.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fantasta.asta.Asta;
+import fantasta.asta.LottoScadutoEvent;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -76,6 +78,17 @@ public class SseController {
 
         log.info("Nuova connessione SSE, client totali: {}", emitters.size());
         return emitter;
+    }
+
+    /**
+     * Alla scadenza il countdown scatta lato server, fuori da una richiesta HTTP:
+     * l'Asta pubblica un evento applicativo e qui si fa ripartire il broadcast dello
+     * snapshot, cosi' console e telefoni vedono subito lo stato SCADUTO.
+     */
+    @EventListener
+    public void onLottoScaduto(LottoScadutoEvent evento) {
+        log.info("Lotto {} scaduto: broadcast dello snapshot ai client", evento.getIdLotto());
+        broadcast();
     }
 
     public void broadcast() {

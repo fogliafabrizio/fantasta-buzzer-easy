@@ -84,9 +84,54 @@ body {
 .ruolo-C { background: #2b6cb0; }
 .ruolo-A { background: #c53030; }
 
+.countdown {
+    margin-left: auto;
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #1f1f38;
+    color: #4ade80;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.countdown.pausa { color: #d1d5db; }
+.countdown.scaduto { color: #eab308; }
+.countdown.aggiudicato { color: #4ade80; }
+
 .lotto-dettagli {
     color: #aaa;
     margin-top: 4px;
+}
+
+.area-stato:not(:empty) {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.area-stato.scaduto {
+    background: #3a2f0a;
+    color: #eab308;
+}
+
+.area-stato.pausa {
+    background: #23283a;
+    color: #cbd5e1;
+}
+
+.area-stato.aggiudicato {
+    background: #10241a;
+    color: #7fe0a0;
+}
+
+.btn-rapido:disabled,
+.buzzer-libero button:disabled,
+.buzzer-libero input:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
 
 .lotto-offerta {

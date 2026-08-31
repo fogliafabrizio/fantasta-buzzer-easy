@@ -2,6 +2,7 @@ package fantasta.web;
 
 import fantasta.asta.Asta;
 import fantasta.asta.Esito;
+import fantasta.asta.ModalitaRiapertura;
 import fantasta.asta.TipoAsta;
 import fantasta.eventi.AstaCreata;
 import fantasta.eventi.AssegnazioneIniziale;
@@ -234,14 +235,8 @@ public class ConsoleController {
     }
 
     @PostMapping("/api/console/annulla-lotto")
-    public ResponseEntity<?> annullaLotto(@RequestBody Map<String, Object> body) {
-        Object idRaw = body.get("idLotto");
-        if (!(idRaw instanceof Number idLotto)) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("errore", "Il campo idLotto e' obbligatorio e deve essere numerico"));
-        }
-
-        Esito esito = asta.annullaLotto(idLotto.intValue());
+    public ResponseEntity<?> annullaLotto() {
+        Esito esito = asta.annullaLotto();
         if (!esito.accettata()) {
             return ResponseEntity.status(esito.statusHttp())
                     .body(Map.of("errore", esito.motivo()));
@@ -249,5 +244,66 @@ public class ConsoleController {
 
         sseController.broadcast();
         return ResponseEntity.ok(Map.of("stato", "annullato"));
+    }
+
+    @PostMapping("/api/console/pausa")
+    public ResponseEntity<?> pausaLotto() {
+        Esito esito = asta.pausaLotto();
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "in_pausa"));
+    }
+
+    @PostMapping("/api/console/riprendi")
+    public ResponseEntity<?> riprendiLotto() {
+        Esito esito = asta.riprendiLotto();
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "aperto"));
+    }
+
+    @PostMapping("/api/console/conferma")
+    public ResponseEntity<?> confermaLotto() {
+        Esito esito = asta.confermaLotto();
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "aggiudicato"));
+    }
+
+    @PostMapping("/api/console/riapri")
+    public ResponseEntity<?> riapriLotto(@RequestBody Map<String, Object> body) {
+        Object modalitaRaw = body.get("modalita");
+        if (!(modalitaRaw instanceof String modalitaStr)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("errore", "Il campo modalita e' obbligatorio (DA_CAPO o MANTENENDO)"));
+        }
+        ModalitaRiapertura modalita;
+        try {
+            modalita = ModalitaRiapertura.valueOf(modalitaStr);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("errore", "Modalita di riapertura non valida: " + modalitaStr));
+        }
+
+        Esito esito = asta.riapriLotto(modalita);
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "aperto"));
     }
 }

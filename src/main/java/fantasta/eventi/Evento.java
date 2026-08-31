@@ -12,7 +12,12 @@ import java.time.Instant;
         @JsonSubTypes.Type(value = AssegnazioneIniziale.class, name = "ASSEGNAZIONE_INIZIALE"),
         @JsonSubTypes.Type(value = LottoAperto.class, name = "LOTTO_APERTO"),
         @JsonSubTypes.Type(value = OffertaAccettata.class, name = "OFFERTA_ACCETTATA"),
-        @JsonSubTypes.Type(value = LottoAnnullato.class, name = "LOTTO_ANNULLATO")
+        @JsonSubTypes.Type(value = LottoAnnullato.class, name = "LOTTO_ANNULLATO"),
+        @JsonSubTypes.Type(value = LottoScaduto.class, name = "LOTTO_SCADUTO"),
+        @JsonSubTypes.Type(value = LottoInPausa.class, name = "LOTTO_IN_PAUSA"),
+        @JsonSubTypes.Type(value = LottoRipreso.class, name = "LOTTO_RIPRESO"),
+        @JsonSubTypes.Type(value = LottoAggiudicato.class, name = "LOTTO_AGGIUDICATO"),
+        @JsonSubTypes.Type(value = LottoRiaperto.class, name = "LOTTO_RIAPERTO")
 })
 public abstract class Evento {
 

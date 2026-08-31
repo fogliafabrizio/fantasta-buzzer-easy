@@ -268,7 +268,7 @@ aggiunge un ramo per ogni nuovo tipo.
 | LOTTO_IN_PAUSA         | Stato → IN_PAUSA, salva secondiResidui                      |
 | LOTTO_RIPRESO          | Stato → APERTO                                              |
 | LOTTO_SCADUTO          | Stato → SCADUTO                                             |
-| LOTTO_AGGIUDICATO      | Assegna calciatore, scala crediti, chiude lotto             |
+| LOTTO_AGGIUDICATO      | Assegna calciatore, scala crediti, stato → AGGIUDICATO (resta visibile) |
 | LOTTO_RIAPERTO         | Stato → APERTO; se DA_CAPO: azzera offerta                  |
 | LOTTO_ANNULLATO        | Rimuove lotto corrente                                      |
 
