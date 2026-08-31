@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.time.Instant;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "tipo")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "tipo", visible = true)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = AstaCreata.class, name = "ASTA_CREATA"),
         @JsonSubTypes.Type(value = AssegnazioneIniziale.class, name = "ASSEGNAZIONE_INIZIALE")
