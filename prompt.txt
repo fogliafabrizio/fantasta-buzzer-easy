@@ -1,0 +1,15 @@
+/speckit-tasks Genera i task dal piano.
+
+Rispetta l'ordine di implementazione obbligatorio della sezione A della costituzione:
+1) import xlsx e creazione asta, 2) apertura lotto e buzzer, 3) countdown, scadenza,
+conferma, riapertura, pausa, 4) proiezioni crediti e rose, 5) ricerca calciatori liberi.
+
+Regole per i task:
+- Ogni gruppo deve essere una fetta verticale end-to-end (backend + telefono + console),
+  provabile a mano avviando il jar e collegando un telefono. Non fare gruppi
+  "tutto il backend" seguiti da "tutta la UI".
+- Alla fine di ogni gruppo indica esattamente cosa devo verificare a mano perché il
+  gruppo sia considerato chiuso.
+- Nessun task di test automatico, build, containerizzazione o deploy.
+- Marca i task che dipendono dal formato reale dell'xlsx, così li affronto con il file
+  vero sotto mano.
