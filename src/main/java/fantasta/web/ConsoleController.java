@@ -66,7 +66,7 @@ public class ConsoleController {
         Path destinazione = dir.resolve(nomeFile);
 
         try {
-            file.transferTo(destinazione.toFile());
+            file.transferTo(destinazione);
             log.info("File listone salvato: {}", destinazione);
         } catch (IOException e) {
             log.error("Salvataggio file listone fallito su {}: {}", destinazione, e.getMessage());
