@@ -8,10 +8,6 @@ import { ListoneService } from '../../services/listone.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    @if (sseService.isConnessionePersa()) {
-      <div class="errore-banner">Connessione al server persa</div>
-    }
-
     <h2>Asta attiva — QR Code partecipanti</h2>
 
     <div class="griglia-qr">

@@ -9,7 +9,10 @@ import java.time.Instant;
         property = "tipo", visible = true)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = AstaCreata.class, name = "ASTA_CREATA"),
-        @JsonSubTypes.Type(value = AssegnazioneIniziale.class, name = "ASSEGNAZIONE_INIZIALE")
+        @JsonSubTypes.Type(value = AssegnazioneIniziale.class, name = "ASSEGNAZIONE_INIZIALE"),
+        @JsonSubTypes.Type(value = LottoAperto.class, name = "LOTTO_APERTO"),
+        @JsonSubTypes.Type(value = OffertaAccettata.class, name = "OFFERTA_ACCETTATA"),
+        @JsonSubTypes.Type(value = LottoAnnullato.class, name = "LOTTO_ANNULLATO")
 })
 public abstract class Evento {
 

@@ -50,3 +50,148 @@ body {
     text-align: center;
     margin-bottom: 16px;
 }
+
+.lotto {
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.lotto-testa {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lotto-nome {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.ruolo {
+    font-size: 0.85rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #444;
+    color: #fff;
+}
+
+.ruolo-P { background: #d9822b; }
+.ruolo-D { background: #2f855a; }
+.ruolo-C { background: #2b6cb0; }
+.ruolo-A { background: #c53030; }
+
+.lotto-dettagli {
+    color: #aaa;
+    margin-top: 4px;
+}
+
+.lotto-offerta {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.offerta-importo {
+    font-size: 2.8rem;
+    font-weight: bold;
+    color: #4ade80;
+    line-height: 1;
+}
+
+.offerta-di {
+    color: #ccc;
+    margin-top: 4px;
+}
+
+.offerta-di.mia {
+    color: #4ade80;
+    font-weight: bold;
+}
+
+.offerta-nessuna {
+    color: #888;
+    font-size: 1.1rem;
+}
+
+.buzzer-rapidi {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.btn-rapido {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 14px 0;
+    border: none;
+    border-radius: 10px;
+    background: #2b6cb0;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-rapido:active {
+    background: #1e4e8c;
+}
+
+.btn-rapido .assoluto {
+    font-size: 0.75rem;
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.buzzer-libero {
+    display: flex;
+    gap: 8px;
+}
+
+.buzzer-libero input {
+    flex: 1;
+    padding: 12px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #1f1f38;
+    color: #e0e0e0;
+    min-width: 0;
+}
+
+.buzzer-libero button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #4ade80;
+    color: #10241a;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.buzzer-libero button:active {
+    background: #38b869;
+}
+
+.messaggio {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.messaggio.ok {
+    background: #1f3d2b;
+    color: #7fe0a0;
+}
+
+.messaggio.errore {
+    background: #4a1f1f;
+    color: #ff9b9b;
+}

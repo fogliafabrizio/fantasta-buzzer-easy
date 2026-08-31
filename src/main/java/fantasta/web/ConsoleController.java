@@ -1,6 +1,7 @@
 package fantasta.web;
 
 import fantasta.asta.Asta;
+import fantasta.asta.Esito;
 import fantasta.asta.TipoAsta;
 import fantasta.eventi.AstaCreata;
 import fantasta.eventi.AssegnazioneIniziale;
@@ -212,5 +213,41 @@ public class ConsoleController {
         log.info("Asta '{}' creata con {} partecipanti", nomeAsta, partecipantiEvento.size());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("partecipanti", rispostaPartecipanti));
+    }
+
+    @PostMapping("/api/console/apri-lotto")
+    public ResponseEntity<?> apriLotto(@RequestBody Map<String, Object> body) {
+        Object idRaw = body.get("idCalciatore");
+        if (!(idRaw instanceof Number idCalciatore)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("errore", "Il campo idCalciatore e' obbligatorio e deve essere numerico"));
+        }
+
+        Esito esito = asta.apriLotto(idCalciatore.intValue());
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "aperto"));
+    }
+
+    @PostMapping("/api/console/annulla-lotto")
+    public ResponseEntity<?> annullaLotto(@RequestBody Map<String, Object> body) {
+        Object idRaw = body.get("idLotto");
+        if (!(idRaw instanceof Number idLotto)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("errore", "Il campo idLotto e' obbligatorio e deve essere numerico"));
+        }
+
+        Esito esito = asta.annullaLotto(idLotto.intValue());
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "annullato"));
     }
 }

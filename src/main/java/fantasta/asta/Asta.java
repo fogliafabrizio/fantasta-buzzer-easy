@@ -143,6 +143,18 @@ public class Asta {
                     calciatoriAssegnati.add(ai.getIdCalciatore());
                 }
             }
+        } else if (evento instanceof LottoAperto la) {
+            this.lottoCorrente = new Lotto(la.getIdLotto(), la.getIdCalciatore(), durataCountdown);
+            this.prossimoIdLotto = la.getIdLotto() + 1;
+        } else if (evento instanceof OffertaAccettata oa) {
+            if (lottoCorrente != null && lottoCorrente.getIdLotto() == oa.getIdLotto()) {
+                lottoCorrente.setOffertaCorrente(oa.getImporto());
+                lottoCorrente.setOfferenteCorrente(oa.getCodicePartecipante());
+            }
+        } else if (evento instanceof LottoAnnullato lan) {
+            if (lottoCorrente != null && lottoCorrente.getIdLotto() == lan.getIdLotto()) {
+                this.lottoCorrente = null;
+            }
         }
     }
 
@@ -201,7 +213,123 @@ public class Asta {
                                         e -> List.copyOf(e.getValue())))))
                 .toList();
 
-        return new Snapshot(sequenza, null, sp, List.copyOf(calciatoriAssegnati));
+        Snapshot.SnapshotLotto sl = null;
+        if (lottoCorrente != null) {
+            sl = new Snapshot.SnapshotLotto(
+                    lottoCorrente.getIdLotto(),
+                    lottoCorrente.getIdCalciatore(),
+                    lottoCorrente.getStato(),
+                    lottoCorrente.getOffertaCorrente(),
+                    lottoCorrente.getOfferenteCorrente(),
+                    lottoCorrente.getSecondiResidui());
+        }
+
+        return new Snapshot(sequenza, sl, sp, List.copyOf(calciatoriAssegnati));
+    }
+
+    /**
+     * Apre un lotto per il calciatore indicato. Il banditore puo' aprire un solo
+     * lotto alla volta e solo su calciatori liberi (non assegnati, non fuori lista).
+     * L'idLotto e' generato dal server in modo progressivo.
+     */
+    public synchronized Esito apriLotto(int idCalciatore) {
+        if (!attiva) {
+            return Esito.rifiuto409("Nessuna asta attiva");
+        }
+        if (lottoCorrente != null) {
+            return Esito.rifiuto409("C'e' gia' un lotto in corso");
+        }
+        Calciatore c = trovaCalciatore(idCalciatore);
+        if (c == null) {
+            return Esito.rifiuto400("Calciatore " + idCalciatore + " non presente nel listone");
+        }
+        if (c.fuoriLista()) {
+            return Esito.rifiuto409("Il calciatore " + c.nome() + " e' fuori lista");
+        }
+        if (calciatoriAssegnati.contains(idCalciatore)) {
+            return Esito.rifiuto409("Il calciatore " + c.nome() + " e' gia' stato assegnato");
+        }
+
+        long seq = ++this.sequenza;
+        int idLotto = this.prossimoIdLotto;
+        LottoAperto evento = new LottoAperto(seq, idLotto, idCalciatore);
+        logEventi.append(evento);
+        applicaEvento(evento);
+
+        log.info("Lotto {} aperto per il calciatore {} ({}, {})",
+                idLotto, idCalciatore, c.nome(), c.ruolo());
+        return Esito.ok();
+    }
+
+    /**
+     * Valida e registra un'offerta. Validazione, append+fsync sul log e
+     * aggiornamento della proiezione avvengono qui, dentro l'unico punto di
+     * serializzazione synchronized: due rilanci concorrenti non possono essere
+     * accettati entrambi. L'importo arriva grezzo (Number) proprio per poter
+     * distinguere un intero valido da un decimale o da un valore assente.
+     */
+    public synchronized Esito registraOfferta(int idLotto, String codicePartecipante, Number importoGrezzo) {
+        if (!attiva) {
+            return Esito.rifiuto409("Nessuna asta attiva");
+        }
+        Partecipante p = partecipanti.get(codicePartecipante);
+        if (p == null) {
+            return Esito.rifiuto400("Codice partecipante sconosciuto");
+        }
+        if (lottoCorrente == null || lottoCorrente.getStato() != StatoLotto.APERTO) {
+            return Esito.rifiuto409("lotto non aperto");
+        }
+        if (lottoCorrente.getIdLotto() != idLotto) {
+            return Esito.rifiuto409("lotto non corrispondente");
+        }
+        if (importoGrezzo == null) {
+            return Esito.rifiuto400("importo non valido");
+        }
+        double importoReale = importoGrezzo.doubleValue();
+        if (importoReale < 1 || importoReale != Math.rint(importoReale)) {
+            return Esito.rifiuto400("importo non valido");
+        }
+        int offertaBase = lottoCorrente.getOffertaCorrente() != null ? lottoCorrente.getOffertaCorrente() : 0;
+        if (importoReale <= offertaBase) {
+            return Esito.rifiuto409("offerta non superiore all'offerta corrente");
+        }
+        if (importoReale > p.getCrediti()) {
+            return Esito.rifiuto409("crediti insufficienti");
+        }
+
+        int importo = (int) importoReale;
+        long seq = ++this.sequenza;
+        OffertaAccettata evento = new OffertaAccettata(seq, idLotto, codicePartecipante, importo);
+        logEventi.append(evento);
+        applicaEvento(evento);
+
+        log.info("Offerta accettata: lotto {}, partecipante {} ({}), importo {}",
+                idLotto, codicePartecipante, p.getNome(), importo);
+        return Esito.ok();
+    }
+
+    /**
+     * Annulla il lotto in corso: il calciatore torna libero, nessuna assegnazione
+     * avviene. Nel Gruppo 2 il lotto e' sempre APERTO.
+     */
+    public synchronized Esito annullaLotto(int idLotto) {
+        if (!attiva) {
+            return Esito.rifiuto409("Nessuna asta attiva");
+        }
+        if (lottoCorrente == null) {
+            return Esito.rifiuto409("Nessun lotto in corso");
+        }
+        if (lottoCorrente.getIdLotto() != idLotto) {
+            return Esito.rifiuto409("lotto non corrispondente");
+        }
+
+        long seq = ++this.sequenza;
+        LottoAnnullato evento = new LottoAnnullato(seq, idLotto);
+        logEventi.append(evento);
+        applicaEvento(evento);
+
+        log.info("Lotto {} annullato, il calciatore torna libero", idLotto);
+        return Esito.ok();
     }
 
     public synchronized boolean isAttiva() {
