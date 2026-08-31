@@ -159,7 +159,9 @@ export class CreaAstaComponent {
   constructor(private http: HttpClient) {}
 
   onUploadRiuscito(event: any): void {
-    const risposta = JSON.parse(event.xhr.responseText) as RispostaAnalisi;
+    // PrimeNG (>=15) usa HttpClient: l'evento onUpload espone originalEvent
+    // (un HttpResponse col body gia' parsato), non piu' xhr.responseText.
+    const risposta = event.originalEvent?.body as RispostaAnalisi;
     this.analisi.set(risposta);
     this.errore.set(null);
 
@@ -171,12 +173,12 @@ export class CreaAstaComponent {
   }
 
   onUploadErrore(event: any): void {
+    // onError espone l'HttpErrorResponse in event.error; il body JSON del
+    // server ({"errore": "..."}) sta in event.error.error.
     let msg = 'Errore nel caricamento del file';
-    if (event.xhr && event.xhr.responseText) {
-      try {
-        const body = JSON.parse(event.xhr.responseText);
-        msg = body.errore || msg;
-      } catch { /* ignora */ }
+    const body = event.error?.error;
+    if (body && typeof body === 'object' && body.errore) {
+      msg = body.errore;
     }
     this.errore.set(msg);
   }
