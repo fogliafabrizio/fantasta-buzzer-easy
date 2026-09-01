@@ -103,7 +103,8 @@ data: { ... JSON snapshot ... }
       }
     }
   ],
-  "calciatoriAssegnati": [5585, 254]
+  "calciatoriAssegnati": [5585, 254],
+  "creditiInCircolazione": 1000
 }
 ```
 
@@ -132,7 +133,16 @@ campi persistiti. Ogni acquisto — `ASSEGNAZIONE_INIZIALE` per la riparazione,
 crediti residui seguono da un'unica formula valida per entrambi i tipi di asta. La rosa
 porta gli id, non i nomi: quelli li risolvono i client dal listone che hanno gia' in
 locale via `GET /api/listone`.
+
+**Nota su `creditiInCircolazione`**: non e' la somma dei crediti residui ma dei crediti
+residui piu' i prezzi gia' impegnati nelle rose. E' un invariante della lega: durante
+un'asta normale non si muove mai, perche' un'aggiudicazione sposta crediti dal residuo
+del vincitore alla sua rosa senza farne sparire. Serve come spia di un errore: se il
+totale cambia, dei crediti sono stati creati o distrutti (per esempio da un importo
+restituito a piacere rimuovendo un calciatore). Per questo lo calcola il server dalla
+proiezione del log e i client si limitano a mostrarlo: una formula sola, in un posto solo.
 | `calciatoriAssegnati`        | array of int         | Tutti gli id dei calciatori già aggiudicati o pre-assegnati |
+| `creditiInCircolazione`      | int                  | Somma su tutti i partecipanti di (crediti residui + prezzi impegnati in rosa) |
 
 Il campo `calciatoriAssegnati` è la union di tutte le rose. È ridondante ma permette al
 telefono di filtrare i calciatori liberi senza iterare le rose di tutti i partecipanti.

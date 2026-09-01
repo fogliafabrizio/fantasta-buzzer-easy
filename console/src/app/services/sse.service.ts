@@ -31,6 +31,11 @@ export interface Snapshot {
   lotto: SnapshotLotto | null;
   partecipanti: SnapshotPartecipante[];
   calciatoriAssegnati: number[];
+  /**
+   * Invariante della lega calcolato dal server: residui piu' impegnato in rosa, su tutti
+   * i partecipanti. Non si muove alle aggiudicazioni. Si mostra, non si ricalcola.
+   */
+  creditiInCircolazione: number;
 }
 
 @Injectable({ providedIn: 'root' })

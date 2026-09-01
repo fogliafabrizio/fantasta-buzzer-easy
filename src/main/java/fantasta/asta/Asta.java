@@ -305,7 +305,23 @@ public class Asta {
                     lottoCorrente.getSecondiResidui());
         }
 
-        return new Snapshot(sequenza, sl, sp, List.copyOf(calciatoriAssegnati));
+        return new Snapshot(sequenza, sl, sp, List.copyOf(calciatoriAssegnati),
+                creditiInCircolazione());
+    }
+
+    /**
+     * Crediti in circolazione nella lega: per ogni partecipante i residui piu' quanto e'
+     * gia' impegnato nella rosa. Non e' la somma dei residui: un'aggiudicazione sposta
+     * crediti dal residuo alla rosa e questo totale deve restare identico. E' l'unica
+     * spia che un intervento del banditore abbia creato o distrutto crediti, quindi
+     * viene calcolato qui, dalla proiezione del log, e non dai client.
+     */
+    private int creditiInCircolazione() {
+        int totale = 0;
+        for (Partecipante p : partecipanti.values()) {
+            totale += p.getCrediti() + p.getCreditiSpesi();
+        }
+        return totale;
     }
 
     /**

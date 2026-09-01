@@ -28,9 +28,10 @@ interface RigaPartecipante {
 /**
  * Tabella di tutti i partecipanti con crediti residui e rosa per ruolo.
  *
- * Tutto qui e' derivato: i crediti arrivano gia' proiettati dal log (totali meno la
- * somma dei prezzi in rosa) e il totale in circolazione e' la loro somma, calcolata al
- * volo. Nessun dato viene tenuto in un campo locale.
+ * Tutto qui arriva gia' derivato dal server: i crediti residui (totali meno la somma dei
+ * prezzi in rosa) e i crediti in circolazione, che sono residui piu' impegnato in rosa su
+ * tutta la lega e non si muovono a un'aggiudicazione. Nessuna formula di dominio viene
+ * ricalcolata nel client e nessun dato viene tenuto in un campo locale.
  *
  * Nessuna regola imposta: la tabella mostra e basta. Non segnala slot pieni, non
  * calcola capienze ne' budget massimi.
@@ -158,7 +159,8 @@ export class TabellaPartecipantiComponent {
     }));
   });
 
+  // Arriva calcolato dal server: nessuna formula di dominio ricalcolata qui.
   creditiInCircolazione = computed(() =>
-    this.righe().reduce((somma, riga) => somma + riga.crediti, 0)
+    this.sseService.snapshotCorrente()?.creditiInCircolazione ?? 0
   );
 }
