@@ -175,11 +175,11 @@ ruolo. Il telefono mostra i crediti e la rosa del partecipante con i nomi dei ca
 
 ### Console banditore
 
-- [ ] T043 [US6] Creare nella console la tabella partecipanti: per ogni partecipante mostrare nome, crediti residui, rosa raggruppata per ruolo (P, D, C, A) con nomi dei calciatori (da listone). Mostrare il totale crediti in circolazione (somma crediti di tutti i partecipanti). Aggiornamento in tempo reale dallo snapshot SSE in console/src/app/console/tabella-partecipanti/
+- [X] T043 [US6] Creare nella console la tabella partecipanti: per ogni partecipante mostrare nome, crediti residui, rosa raggruppata per ruolo (P, D, C, A) con nomi dei calciatori (da listone). Mostrare il totale crediti in circolazione (somma crediti di tutti i partecipanti). Aggiornamento in tempo reale dallo snapshot SSE in console/src/app/console/tabella-partecipanti/
 
 ### Telefono
 
-- [ ] T044 [US6] Aggiungere al telefono la sezione crediti e rosa: mostrare i crediti residui del partecipante corrente (da snapshot, filtrato per codice), la rosa raggruppata per ruolo con i nomi dei calciatori (lookup dal listone locale). Aggiornamento automatico a ogni snapshot in src/main/resources/static/telefono/app.js
+- [X] T044 [US6] Aggiungere al telefono la sezione crediti e rosa: mostrare i crediti residui del partecipante corrente (da snapshot, filtrato per codice), la rosa raggruppata per ruolo con i nomi dei calciatori (lookup dal listone locale). Aggiornamento automatico a ogni snapshot in src/main/resources/static/telefono/app.js
 
 ---
 

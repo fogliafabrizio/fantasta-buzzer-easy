@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Component
 public class Asta {
@@ -179,8 +178,7 @@ public class Asta {
             if (p != null) {
                 Calciatore c = trovaCalciatore(ai.getIdCalciatore());
                 if (c != null) {
-                    p.aggiungiCalciatore(c.ruolo(), ai.getIdCalciatore());
-                    p.scalaCrediti(ai.getCosto());
+                    p.acquista(c.ruolo(), ai.getIdCalciatore(), ai.getCosto());
                     calciatoriAssegnati.add(ai.getIdCalciatore());
                 }
             }
@@ -227,8 +225,7 @@ public class Asta {
                 Partecipante vincitore = partecipanti.get(lag.getCodiceVincitore());
                 Calciatore c = trovaCalciatore(lag.getIdCalciatore());
                 if (vincitore != null && c != null) {
-                    vincitore.aggiungiCalciatore(c.ruolo(), lag.getIdCalciatore());
-                    vincitore.scalaCrediti(lag.getImporto());
+                    vincitore.acquista(c.ruolo(), lag.getIdCalciatore(), lag.getImporto());
                     calciatoriAssegnati.add(lag.getIdCalciatore());
                 }
                 // Il lotto non sparisce: resta in lottoCorrente come AGGIUDICATO cosi' la
@@ -292,10 +289,9 @@ public class Asta {
 
         List<Snapshot.SnapshotPartecipante> sp = partecipanti.values().stream()
                 .map(p -> new Snapshot.SnapshotPartecipante(
-                        p.getNome(), p.getCodice(), p.getCrediti(),
-                        p.getRosa().entrySet().stream()
-                                .collect(Collectors.toMap(Map.Entry::getKey,
-                                        e -> List.copyOf(e.getValue())))))
+                        p.getNome(), p.getCodice(),
+                        p.getCreditiTotali(), p.getCrediti(),
+                        copiaRosa(p)))
                 .toList();
 
         Snapshot.SnapshotLotto sl = null;
@@ -310,6 +306,18 @@ public class Asta {
         }
 
         return new Snapshot(sequenza, sl, sp, List.copyOf(calciatoriAssegnati));
+    }
+
+    /**
+     * Copia difensiva della rosa in un EnumMap: cosi' i ruoli escono sempre nell'ordine
+     * P, D, C, A anche nel JSON, e tutte e quattro le chiavi ci sono pure se vuote.
+     */
+    private static Map<Ruolo, List<VoceRosa>> copiaRosa(Partecipante p) {
+        Map<Ruolo, List<VoceRosa>> copia = new EnumMap<>(Ruolo.class);
+        for (Ruolo r : Ruolo.values()) {
+            copia.put(r, List.copyOf(p.getRosa().get(r)));
+        }
+        return copia;
     }
 
     /**

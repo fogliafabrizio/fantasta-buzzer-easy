@@ -9,11 +9,21 @@ export interface SnapshotLotto {
   secondiResidui: number;
 }
 
+/** Un calciatore in rosa con il prezzo pagato. Il nome lo risolve il client dal listone. */
+export interface VoceRosa {
+  idCalciatore: number;
+  prezzo: number;
+}
+
+export type Rosa = Record<'P' | 'D' | 'C' | 'A', VoceRosa[]>;
+
 export interface SnapshotPartecipante {
   nome: string;
   codice: string;
+  /** Dotazione iniziale. I crediti residui sono sempre totali - somma dei prezzi in rosa. */
+  creditiTotali: number;
   crediti: number;
-  rosa: { P: number[]; D: number[]; C: number[]; A: number[] };
+  rosa: Rosa;
 }
 
 export interface Snapshot {

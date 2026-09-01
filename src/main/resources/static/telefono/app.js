@@ -22,6 +22,11 @@
     var vista = null;            // 'attesa' | 'codice-assente' | 'asta'
     var statoAreaLotto = null;   // idLotto con skeleton in DOM, 'vuoto', oppure null
 
+    var RUOLI = ["P", "D", "C", "A"];
+    // Firma dell'ultimo contenuto disegnato per ogni reparto della rosa: finche' non
+    // cambia, i chip dei calciatori restano gli stessi nodi e non si ridisegna nulla.
+    var firmeRosa = {};
+
     // Countdown scalato localmente solo per l'animazione: il tempo autorevole e' quello
     // del server. A ogni snapshot ci si riallinea fissando l'istante di scadenza locale
     // (adesso + secondiResidui); tra uno snapshot e l'altro si mostra ceil((scadenza -
@@ -77,16 +82,38 @@
         app.innerHTML = '<div class="errore">Codice ' + esc(codice) + ' non trovato nell\'asta</div>';
     }
 
-    // Layout base dell'asta (intestazione + contenitore del lotto): costruito una sola volta.
+    // Layout base dell'asta (intestazione, contenitore del lotto, rosa): costruito una
+    // sola volta. Anche i quattro reparti della rosa sono nodi fissi: a ogni snapshot si
+    // riscrivono solo conteggio e chip, e solo dei reparti davvero cambiati.
     function costruisciLayoutAsta() {
         vista = "asta";
         statoAreaLotto = null;
+        firmeRosa = {};
+
+        var reparti = "";
+        for (var i = 0; i < RUOLI.length; i++) {
+            var r = RUOLI[i];
+            reparti +=
+                '<div class="reparto">' +
+                '<span class="ruolo ruolo-' + r + '">' + r + '</span>' +
+                '<span class="reparto-conteggio" id="rosa-conteggio-' + r + '"></span>' +
+                '<div class="reparto-calciatori" id="rosa-calciatori-' + r + '"></div>' +
+                '</div>';
+        }
+
         app.innerHTML =
             '<div class="intestazione">' +
             '<h1 id="p-nome"></h1>' +
             '<div class="codice" id="p-crediti"></div>' +
             '</div>' +
-            '<div id="area-lotto"></div>';
+            '<div id="area-lotto"></div>' +
+            '<div class="rosa">' +
+            '<div class="rosa-testa">' +
+            '<span>La tua rosa</span>' +
+            '<span class="rosa-spesa" id="rosa-spesa"></span>' +
+            '</div>' +
+            reparti +
+            '</div>';
     }
 
     // Skeleton del lotto: costruito una volta per idLotto. Qui vivono l'input e i
@@ -174,6 +201,51 @@
         }
     }
 
+    // Rosa del partecipante, raggruppata per ruolo. I crediti residui arrivano gia'
+    // proiettati dal server (totali meno la somma dei prezzi in rosa): qui si mostrano
+    // e basta, senza regole ne' capienze. Ogni reparto si riscrive solo se il suo
+    // contenuto e' cambiato: durante il countdown la rosa non viene toccata.
+    function vociRuolo(partecipante, ruolo) {
+        return (partecipante.rosa && partecipante.rosa[ruolo]) || [];
+    }
+
+    function aggiornaRosa(partecipante) {
+        var quanti = 0;
+        var spesa = 0;
+
+        for (var i = 0; i < RUOLI.length; i++) {
+            var ruolo = RUOLI[i];
+            var voci = vociRuolo(partecipante, ruolo);
+            quanti += voci.length;
+
+            // Il listone entra nella firma: quando arriva, i nomi sostituiscono gli id.
+            var firma = listone ? "L" : "-";
+            for (var j = 0; j < voci.length; j++) {
+                spesa += voci[j].prezzo;
+                firma += "|" + voci[j].idCalciatore + ":" + voci[j].prezzo;
+            }
+
+            if (firmeRosa[ruolo] === firma) continue;
+            firmeRosa[ruolo] = firma;
+
+            el("rosa-conteggio-" + ruolo).textContent = voci.length;
+
+            var html = "";
+            for (var k = 0; k < voci.length; k++) {
+                var c = trovaCalciatore(voci[k].idCalciatore);
+                var nome = c ? c.nome : "#" + voci[k].idCalciatore;
+                html += '<span class="chip">' + esc(nome) +
+                        ' <em>' + voci[k].prezzo + '</em></span>';
+            }
+            el("rosa-calciatori-" + ruolo).innerHTML =
+                html || '<span class="reparto-vuoto">nessuno</span>';
+        }
+
+        el("rosa-spesa").textContent = quanti === 0
+            ? "nessun calciatore"
+            : quanti + (quanti === 1 ? " calciatore · " : " calciatori · ") + spesa + " spesi";
+    }
+
     function mostraMessaggio(tipo, testo) {
         var area = el("area-messaggio");
         if (!area) return;
@@ -200,7 +272,9 @@
         }
 
         el("p-nome").textContent = partecipante.nome;
-        el("p-crediti").textContent = "Crediti: " + partecipante.crediti;
+        el("p-crediti").textContent = "Crediti residui: " + partecipante.crediti
+                + " di " + partecipante.creditiTotali;
+        aggiornaRosa(partecipante);
 
         var lotto = snapshot.lotto;
         if (lotto) {

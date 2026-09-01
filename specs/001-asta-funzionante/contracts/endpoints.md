@@ -93,12 +93,13 @@ data: { ... JSON snapshot ... }
     {
       "nome": "Marco",
       "codice": "A3K7",
+      "creditiTotali": 500,
       "crediti": 485,
       "rosa": {
         "P": [],
-        "D": [254],
+        "D": [{ "idCalciatore": 254, "prezzo": 3 }],
         "C": [],
-        "A": [5585]
+        "A": [{ "idCalciatore": 5585, "prezzo": 12 }]
       }
     }
   ],
@@ -121,8 +122,16 @@ data: { ... JSON snapshot ... }
 | `partecipanti`               | array                | Tutti i partecipanti, sempre presenti                     |
 | `partecipanti[].nome`        | String               |                                                           |
 | `partecipanti[].codice`      | String               |                                                           |
-| `partecipanti[].crediti`     | int                  | Crediti effettivi (scalati solo alle aggiudicazioni)      |
-| `partecipanti[].rosa`        | object               | Chiavi: `P`, `D`, `C`, `A`; valori: array di id calciatore |
+| `partecipanti[].creditiTotali` | int                | Dotazione iniziale del partecipante                       |
+| `partecipanti[].crediti`     | int                  | Crediti residui, proiettati: `creditiTotali` meno la somma dei `prezzo` in rosa |
+| `partecipanti[].rosa`        | object               | Chiavi: `P`, `D`, `C`, `A`, sempre tutte e quattro; valori: array di `{ idCalciatore, prezzo }` |
+
+**Nota su crediti e rosa**: sono proiezioni ricalcolate dal log a ogni snapshot, mai
+campi persistiti. Ogni acquisto — `ASSEGNAZIONE_INIZIALE` per la riparazione,
+`LOTTO_AGGIUDICATO` per l'asta — aggiunge una voce alla rosa con il prezzo pagato, e i
+crediti residui seguono da un'unica formula valida per entrambi i tipi di asta. La rosa
+porta gli id, non i nomi: quelli li risolvono i client dal listone che hanno gia' in
+locale via `GET /api/listone`.
 | `calciatoriAssegnati`        | array of int         | Tutti gli id dei calciatori già aggiudicati o pre-assegnati |
 
 Il campo `calciatoriAssegnati` è la union di tutte le rose. È ridondante ma permette al
