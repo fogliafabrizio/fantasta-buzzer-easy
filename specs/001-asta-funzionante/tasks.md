@@ -199,16 +199,17 @@ per nome e ruolo. Assegnati e fuori lista sono esclusi.
 
 ### Telefono
 
-- [ ] T045 [US7] Aggiungere al telefono la funzione ricerca calciatori liberi: campo di testo per nome (ricerca parziale case-insensitive), filtro per ruolo (P/D/C/A/tutti), lista risultati dal listone locale. Escludere i calciatori presenti in calciatoriAssegnati dello snapshot e quelli con fuoriLista=true. Mostrare id, nome, ruolo, squadra, quotazione in src/main/resources/static/telefono/app.js e src/main/resources/static/telefono/index.html
+- [X] T045 [US7] Aggiungere al telefono la funzione ricerca calciatori liberi: campo di testo per nome (ricerca parziale case-insensitive), filtro per ruolo (P/D/C/A/tutti), lista risultati dal listone locale. I calciatori presenti in calciatoriAssegnati dello snapshot e quelli con fuoriLista=true non compaiono tra i liberi: finiscono in un gruppo "Non disponibili", marcati (con il nome di chi li ha, o "fuori lista"). Mostrare nome, ruolo, squadra, quotazione in src/main/resources/static/telefono/app.js e src/main/resources/static/telefono/index.html
 
 ---
 
 **Verifica manuale Gruppo 5**:
 
-1. Dal telefono, cercare un calciatore per nome: appare solo se libero
-2. Filtrare per ruolo A: appaiono solo attaccanti liberi
-3. Cercare un calciatore gia aggiudicato: non appare nei risultati
-4. Cercare un calciatore fuori lista: non appare nei risultati
+1. Dal telefono, cercare un calciatore per nome: se libero appare sotto "Liberi"
+2. Filtrare per ruolo A: sotto "Liberi" appaiono solo attaccanti liberi
+3. Cercare un calciatore gia aggiudicato: non e' tra i liberi, appare sotto "Non disponibili" marcato "preso da <squadra>"
+4. Cercare un calciatore fuori lista: non e' tra i liberi, appare sotto "Non disponibili" marcato "fuori lista"
+5. Con la ricerca aperta e il testo digitato, aggiudicare dalla console un calciatore presente nei risultati: passa da solo da "Liberi" a "Non disponibili" senza che il campo si svuoti o perda il focus
 
 ---
 

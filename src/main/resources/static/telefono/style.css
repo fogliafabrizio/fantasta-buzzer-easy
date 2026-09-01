@@ -310,3 +310,135 @@ body {
     font-style: normal;
     font-weight: bold;
 }
+
+.ricerca {
+    margin-top: 16px;
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    border-radius: 12px;
+    padding: 12px 16px;
+}
+
+.ricerca-testa {
+    color: #fff;
+    font-weight: bold;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #3a3a5a;
+    margin-bottom: 10px;
+}
+
+.ricerca input {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.05rem;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #1f1f38;
+    color: #e0e0e0;
+}
+
+.ricerca-ruoli {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.btn-ruolo {
+    padding: 8px 0;
+    border: 1px solid #3a3a5a;
+    border-radius: 8px;
+    background: #1f1f38;
+    color: #bbb;
+    font-size: 0.95rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-ruolo.attivo {
+    background: #2b6cb0;
+    border-color: #2b6cb0;
+    color: #fff;
+}
+
+.ricerca-risultati {
+    margin-top: 10px;
+}
+
+.ricerca-gruppo {
+    color: #888;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 10px 0 4px;
+}
+
+.ricerca-nota {
+    color: #777;
+    font-size: 0.85rem;
+    padding: 6px 0;
+}
+
+.ris {
+    background: #1f1f38;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+}
+
+.ris-testa {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ris-nome {
+    color: #fff;
+    font-weight: bold;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ris .ruolo {
+    font-size: 0.75rem;
+    padding: 1px 6px;
+}
+
+.ris-quot {
+    color: #888;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ris-sotto {
+    color: #999;
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+
+/* I non disponibili non devono mai essere scambiati per liberi: sfondo spento,
+   barra rossa a sinistra e marchio esplicito con il nome di chi li ha. */
+.ris.non-disponibile {
+    background: #241f2e;
+    border-left: 3px solid #a05252;
+    opacity: 0.75;
+}
+
+.ris.non-disponibile .ris-nome {
+    color: #bbb;
+    text-decoration: line-through;
+}
+
+.marchio {
+    display: inline-block;
+    background: #4a1f1f;
+    color: #ff9b9b;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}

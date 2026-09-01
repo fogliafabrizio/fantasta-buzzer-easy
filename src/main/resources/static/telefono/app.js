@@ -38,6 +38,18 @@
     var statoLottoCorrente = null;    // stato del lotto per decidere se il countdown scorre
     var istanteScadenzaLocale = 0;    // epoch ms stimato di scadenza, per la sola animazione
 
+    // Ricerca sul listone: tutta locale. Il listone arriva una volta con la GET
+    // /api/listone e non cambia piu'; lo stato "gia' preso" invece arriva dallo
+    // snapshot (calciatoriAssegnati), quindi i risultati si riclassificano da soli
+    // a ogni aggiudicazione, anche con la ricerca aperta a schermo.
+    // Il listone reale supera le 500 righe: si renderizzano al massimo MAX_LIBERI
+    // risultati liberi e MAX_NON_DISPONIBILI tra presi e fuori lista.
+    var MAX_LIBERI = 40;
+    var MAX_NON_DISPONIBILI = 15;
+    var filtroNome = "";
+    var filtroRuolo = "";          // "" = tutti i ruoli
+    var firmaRicerca = null;       // ultimo HTML disegnato nei risultati, per non ridisegnarlo uguale
+
     function el(id) {
         return document.getElementById(id);
     }
@@ -89,6 +101,7 @@
         vista = "asta";
         statoAreaLotto = null;
         firmeRosa = {};
+        firmaRicerca = null;
 
         var reparti = "";
         for (var i = 0; i < RUOLI.length; i++) {
@@ -113,7 +126,47 @@
             '<span class="rosa-spesa" id="rosa-spesa"></span>' +
             '</div>' +
             reparti +
+            '</div>' +
+            '<div class="ricerca">' +
+            '<div class="ricerca-testa">Cerca un calciatore</div>' +
+            '<input id="ricerca-nome" type="search" autocomplete="off"' +
+            ' autocorrect="off" autocapitalize="off" placeholder="Nome calciatore">' +
+            '<div class="ricerca-ruoli" id="ricerca-ruoli"></div>' +
+            '<div class="ricerca-risultati" id="ricerca-risultati"></div>' +
             '</div>';
+
+        costruisciRicerca();
+    }
+
+    // Campo nome e pulsanti ruolo: creati una volta sola e mai sostituiti, cosi' il
+    // testo digitato e il focus sopravvivono a snapshot e countdown. I filtri vivono
+    // in filtroNome/filtroRuolo, quindi si ripristinano anche se il layout si ricostruisce.
+    function costruisciRicerca() {
+        var input = el("ricerca-nome");
+        input.value = filtroNome;
+        input.addEventListener("input", function () {
+            filtroNome = this.value;
+            aggiornaRicerca();
+        });
+
+        var contenitore = el("ricerca-ruoli");
+        var scelte = [["", "Tutti"], ["P", "P"], ["D", "D"], ["C", "C"], ["A", "A"]];
+        for (var i = 0; i < scelte.length; i++) {
+            var btn = document.createElement("button");
+            btn.className = "btn-ruolo" + (scelte[i][0] === filtroRuolo ? " attivo" : "");
+            btn.setAttribute("data-ruolo", scelte[i][0]);
+            btn.textContent = scelte[i][1];
+            btn.addEventListener("click", function () {
+                filtroRuolo = this.getAttribute("data-ruolo");
+                var tutti = el("ricerca-ruoli").querySelectorAll(".btn-ruolo");
+                for (var j = 0; j < tutti.length; j++) {
+                    var suo = tutti[j].getAttribute("data-ruolo") === filtroRuolo;
+                    tutti[j].className = "btn-ruolo" + (suo ? " attivo" : "");
+                }
+                aggiornaRicerca();
+            });
+            contenitore.appendChild(btn);
+        }
     }
 
     // Skeleton del lotto: costruito una volta per idLotto. Qui vivono l'input e i
@@ -246,6 +299,118 @@
             : quanti + (quanti === 1 ? " calciatore · " : " calciatori · ") + spesa + " spesi";
     }
 
+    // --- Ricerca sul listone (tutta locale, nessuna chiamata al server) ---
+
+    // Chi ha in rosa ciascun calciatore, ricavato dalle rose dello snapshot: serve a
+    // dire non solo che un calciatore e' preso, ma da chi.
+    function proprietariPerCalciatore() {
+        var proprietari = {};
+        if (!snapshot) return proprietari;
+        for (var i = 0; i < snapshot.partecipanti.length; i++) {
+            var p = snapshot.partecipanti[i];
+            for (var j = 0; j < RUOLI.length; j++) {
+                var voci = vociRuolo(p, RUOLI[j]);
+                for (var k = 0; k < voci.length; k++) {
+                    proprietari[voci[k].idCalciatore] = p.nome;
+                }
+            }
+        }
+        return proprietari;
+    }
+
+    function insiemeAssegnati() {
+        var assegnati = {};
+        if (!snapshot || !snapshot.calciatoriAssegnati) return assegnati;
+        for (var i = 0; i < snapshot.calciatoriAssegnati.length; i++) {
+            assegnati[snapshot.calciatoriAssegnati[i]] = true;
+        }
+        return assegnati;
+    }
+
+    function corrisponde(c) {
+        if (filtroRuolo !== "" && c.ruolo !== filtroRuolo) return false;
+        var q = filtroNome.trim().toLowerCase();
+        return q === "" || c.nome.toLowerCase().indexOf(q) !== -1;
+    }
+
+    function rigaRicerca(c, marchio) {
+        return '<div class="ris' + (marchio ? " non-disponibile" : "") + '">' +
+            '<div class="ris-testa">' +
+            '<span class="ris-nome">' + esc(c.nome) + '</span>' +
+            '<span class="ruolo ruolo-' + esc(c.ruolo) + '">' + esc(c.ruolo) + '</span>' +
+            '<span class="ris-quot">Q ' + c.quotazione + '</span>' +
+            '</div>' +
+            '<div class="ris-sotto">' + esc(c.squadra) +
+            (marchio ? ' <span class="marchio">' + esc(marchio) + '</span>' : "") +
+            '</div>' +
+            '</div>';
+    }
+
+    // Ricostruisce il solo contenuto di #ricerca-risultati, e solo se e' cambiato:
+    // il campo nome e i pulsanti ruolo non vengono mai toccati, quindi la ricerca
+    // aperta non si resetta ne' perde il focus quando arriva uno snapshot.
+    function aggiornaRicerca() {
+        var area = el("ricerca-risultati");
+        if (!area) return;
+
+        var html;
+        if (!listone) {
+            html = '<div class="ricerca-nota">Listone in caricamento…</div>';
+        } else if (filtroNome.trim() === "" && filtroRuolo === "") {
+            html = '<div class="ricerca-nota">Scrivi un nome o scegli un ruolo per cercare.</div>';
+        } else {
+            var assegnati = insiemeAssegnati();
+            var proprietari = proprietariPerCalciatore();
+
+            var liberi = "";
+            var quantiLiberi = 0;
+            var nonDisponibili = "";
+            var quantiNonDisponibili = 0;
+
+            for (var i = 0; i < listone.length; i++) {
+                var c = listone[i];
+                if (!corrisponde(c)) continue;
+
+                if (assegnati[c.id]) {
+                    quantiNonDisponibili++;
+                    if (quantiNonDisponibili <= MAX_NON_DISPONIBILI) {
+                        var chi = proprietari[c.id];
+                        nonDisponibili += rigaRicerca(c, chi ? "preso da " + chi : "gia' preso");
+                    }
+                } else if (c.fuoriLista) {
+                    quantiNonDisponibili++;
+                    if (quantiNonDisponibili <= MAX_NON_DISPONIBILI) {
+                        nonDisponibili += rigaRicerca(c, "fuori lista");
+                    }
+                } else {
+                    quantiLiberi++;
+                    if (quantiLiberi <= MAX_LIBERI) liberi += rigaRicerca(c, null);
+                }
+            }
+
+            html = '<div class="ricerca-gruppo">Liberi</div>';
+            html += quantiLiberi === 0
+                ? '<div class="ricerca-nota">Nessun calciatore libero per questa ricerca.</div>'
+                : liberi;
+            if (quantiLiberi > MAX_LIBERI) {
+                html += '<div class="ricerca-nota">Mostrati i primi ' + MAX_LIBERI +
+                    ' di ' + quantiLiberi + ': affina la ricerca.</div>';
+            }
+
+            if (quantiNonDisponibili > 0) {
+                html += '<div class="ricerca-gruppo">Non disponibili</div>' + nonDisponibili;
+                if (quantiNonDisponibili > MAX_NON_DISPONIBILI) {
+                    html += '<div class="ricerca-nota">Mostrati i primi ' + MAX_NON_DISPONIBILI +
+                        ' di ' + quantiNonDisponibili + '.</div>';
+                }
+            }
+        }
+
+        if (firmaRicerca === html) return;
+        firmaRicerca = html;
+        area.innerHTML = html;
+    }
+
     function mostraMessaggio(tipo, testo) {
         var area = el("area-messaggio");
         if (!area) return;
@@ -275,6 +440,7 @@
         el("p-crediti").textContent = "Crediti residui: " + partecipante.crediti
                 + " di " + partecipante.creditiTotali;
         aggiornaRosa(partecipante);
+        aggiornaRicerca();
 
         var lotto = snapshot.lotto;
         if (lotto) {
