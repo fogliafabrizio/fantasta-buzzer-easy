@@ -1,0 +1,4 @@
+# Blocco leggibile al posto dello stack trace quando il log dell'asta ha una riga rotta.
+# Spring cerca i FailureAnalyzer solo qui: senza questa riga la classe non viene usata.
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+fantasta.eventi.LogCorrottoAnalyzer

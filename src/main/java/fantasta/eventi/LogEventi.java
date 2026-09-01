@@ -44,17 +44,21 @@ public class LogEventi {
             return List.of();
         }
         List<Evento> eventi = new ArrayList<>();
+        int righeVuote = 0;
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             String riga;
             int numeroRiga = 0;
             while ((riga = reader.readLine()) != null) {
                 numeroRiga++;
-                if (riga.isBlank()) continue;
+                if (riga.isBlank()) {
+                    righeVuote++;
+                    continue;
+                }
                 try {
                     eventi.add(mapper.readValue(riga, Evento.class));
                 } catch (Exception e) {
-                    throw new RuntimeException(
-                            "Errore di parsing alla riga " + numeroRiga + " del file " + file + ": " + e.getMessage(), e);
+                    // Nessun salto: la riga rotta ferma il replay e l'avvio.
+                    throw new LogCorrottoException(file, numeroRiga, riga, e.getMessage(), e);
                 }
             }
         } catch (IOException e) {
@@ -62,7 +66,40 @@ public class LogEventi {
                     "Lettura del file log " + file + " fallita: " + e.getMessage(), e);
         }
         log.info("Letti {} eventi dal file {}", eventi.size(), file.getFileName());
+
+        if (righeVuote > 0) {
+            log.warn("Ignorate {} righe vuote nel file {}: un log scritto dal server non ne contiene, "
+                    + "quindi il file e' stato toccato a mano. Il server parte lo stesso",
+                    righeVuote, file.getFileName());
+        }
+        verificaCoerenzaSequenza(eventi);
+
         return eventi;
+    }
+
+    /**
+     * Avviso, non blocco. Ogni evento viene appeso subito dopo aver preso il proprio
+     * numero, quindi in un log scritto solo dal server le sequenze vanno da 1 a N senza
+     * buchi e l'ultima coincide con il numero di eventi. Uno scarto dice che una riga si
+     * e' persa o e' stata duplicata, ma la causa e' ignota: anche una modifica manuale
+     * legittima lo produce. Segnalare e ripartire e' meglio che non ripartire in serata
+     * per un sospetto.
+     * <p>
+     * Il conteggio guarda i soli eventi letti dal file: l'eventuale LOTTO_IN_PAUSA che
+     * la ricostruzione scrive all'avvio per un lotto rimasto aperto arriva dopo, e
+     * confrontarlo qui darebbe un falso allarme a ogni riavvio con un lotto aperto.
+     */
+    private void verificaCoerenzaSequenza(List<Evento> eventi) {
+        if (eventi.isEmpty()) {
+            return;
+        }
+        long ultimaSequenza = eventi.get(eventi.size() - 1).getSequenza();
+        if (ultimaSequenza != eventi.size()) {
+            log.warn("Sequenza incoerente nel file {}: {} eventi letti ma l'ultimo porta sequenza {}. "
+                    + "Manca o si ripete qualche riga. Il server parte lo stesso: vale la pena "
+                    + "guardare il file prima di andare avanti",
+                    file.getFileName(), eventi.size(), ultimaSequenza);
+        }
     }
 
     public Path getFile() {
