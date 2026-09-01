@@ -16,6 +16,11 @@ import java.util.Map;
  * gia' calcolato (i pulsanti +1/+2/+5/+10 sono risolti dal telefono). Ogni offerta
  * porta l'idLotto: la validazione nel dominio la rifiuta se non corrisponde al lotto
  * aperto. Il motivo del rifiuto torna al telefono nel campo "motivo".
+ * <p>
+ * I soli pulsanti rapidi portano anche "offertaBase", cioe' l'offerta corrente su cui
+ * il pulsante era stato disegnato: e' il campo su cui il dominio verifica che nel
+ * frattempo l'offerta non sia cambiata. Il campo e' opzionale, e un client che non lo
+ * invia si comporta esattamente come prima.
  */
 @RestController
 public class OffertaController {
@@ -35,6 +40,7 @@ public class OffertaController {
         Object idLottoRaw = body.get("idLotto");
         Object codiceRaw = body.get("codicePartecipante");
         Object importoRaw = body.get("importo");
+        Object offertaBaseRaw = body.get("offertaBase");
 
         if (!(idLottoRaw instanceof Number idLotto)) {
             return ResponseEntity.badRequest()
@@ -49,10 +55,15 @@ public class OffertaController {
         // validazione nel dominio lo rifiuta con "importo non valido".
         Number importo = (importoRaw instanceof Number n) ? n : null;
 
-        Esito esito = asta.registraOfferta(idLotto.intValue(), codice, importo);
+        // offertaBase e' opzionale e lasciata grezza allo stesso modo: assente o non
+        // numerica significa importo digitato liberamente, quindi nessuna guardia. E'
+        // il dominio a decidere cosa farne, il controller non interpreta.
+        Integer offertaBase = (offertaBaseRaw instanceof Number b) ? b.intValue() : null;
+
+        Esito esito = asta.registraOfferta(idLotto.intValue(), codice, importo, offertaBase);
         if (!esito.accettata()) {
-            log.info("Offerta rifiutata: lotto {}, codice {}, importo {} -> {}",
-                    idLotto.intValue(), codice, importoRaw, esito.motivo());
+            log.info("Offerta rifiutata: lotto {}, codice {}, importo {}, offerta base {} -> {}",
+                    idLotto.intValue(), codice, importoRaw, offertaBaseRaw, esito.motivo());
             return ResponseEntity.status(esito.statusHttp())
                     .body(Map.of("motivo", esito.motivo()));
         }

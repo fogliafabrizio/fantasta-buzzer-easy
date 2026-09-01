@@ -36,7 +36,7 @@ statico in `src/main/resources/static/telefono/`. Nessuna directory `tests/`.
 **Purpose**: nessuna inizializzazione da fare. Il progetto esiste, la feature 1 è
 completa, non ci sono nuove dipendenze da aggiungere né configurazione da toccare.
 
-- [ ] T001 Verificare la linea di partenza: `mvn -q package`, avviare `java -jar target/fantasta-*.jar` su un log JSONL della feature 1 e confermare che lo stato si ricostruisce senza errori. È il riferimento contro cui confrontare ogni riavvio successivo
+- [X] T001 Verificare la linea di partenza: `mvn -q package`, avviare `java -jar target/fantasta-*.jar` su un log JSONL della feature 1 e confermare che lo stato si ricostruisce senza errori. È il riferimento contro cui confrontare ogni riavvio successivo
 
 **Checkpoint**: baseline nota e riproducibile.
 
@@ -73,13 +73,14 @@ la seconda offerta è rifiutata con il motivo corretto e i suoi crediti non si m
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] In `src/main/java/fantasta/asta/Asta.java`, aggiungere il parametro `Integer offertaBase` alla firma di `registraOfferta` e inserire la guardia come **passo 6** dei controlli: dopo lo `switch` sullo stato del lotto e prima del controllo `importoGrezzo == null`. Se `offertaBase != null` e diverso da `offertaCorrente != null ? offertaCorrente : 0` → `Esito.rifiuto409("l'offerta e' cambiata mentre rilanciavi")`. Riusare l'espressione già presente per la regola del rilancio, non introdurne una seconda
-- [ ] T007 [US1] In `src/main/java/fantasta/asta/Asta.java`, aggiungere alla riga di log del rifiuto il valore dichiarato e quello corrente, in italiano, così dal log si capisce perché la guardia è scattata (principio VI)
-- [ ] T008 [US1] In `src/main/java/fantasta/web/OffertaController.java`, leggere `offertaBase` dal body lasciandolo grezzo come già si fa con `importo` (`null` se assente o non numerico) e passarlo a `registraOfferta`. Il controller non interpreta: decide il dominio
-- [ ] T009 [US1] In `src/main/resources/static/telefono/app.js`, far inviare ai pulsanti rapidi `offertaBase = lotto.offertaCorrente != null ? lotto.offertaCorrente : 0`, letto dallo snapshot su cui il pulsante è stato disegnato. L'input a importo libero **non** deve mai inviare il campo
-- [ ] T010 [US1] In `src/main/resources/static/telefono/app.js`, disabilitare tutti i pulsanti rapidi subito dopo un tap e riabilitarli solo all'arrivo del successivo snapshot, riconnessione compresa. Non toccare l'input a importo libero
-- [ ] T011 [US1] In `src/main/resources/static/telefono/app.js`, verificare che il motivo `"l'offerta e' cambiata mentre rilanciavi"` arrivi all'utente attraverso il percorso di rifiuto già esistente della feature 1, senza aggiungerne un secondo
+- [X] T006 [US1] In `src/main/java/fantasta/asta/Asta.java`, aggiungere il parametro `Integer offertaBase` alla firma di `registraOfferta` e inserire la guardia come **passo 6** dei controlli: dopo lo `switch` sullo stato del lotto e prima del controllo `importoGrezzo == null`. Se `offertaBase != null` e diverso da `offertaCorrente != null ? offertaCorrente : 0` → `Esito.rifiuto409("l'offerta e' cambiata mentre rilanciavi")`. Riusare l'espressione già presente per la regola del rilancio, non introdurne una seconda
+- [X] T007 [US1] In `src/main/java/fantasta/asta/Asta.java`, aggiungere alla riga di log del rifiuto il valore dichiarato e quello corrente, in italiano, così dal log si capisce perché la guardia è scattata (principio VI)
+- [X] T008 [US1] In `src/main/java/fantasta/web/OffertaController.java`, leggere `offertaBase` dal body lasciandolo grezzo come già si fa con `importo` (`null` se assente o non numerico) e passarlo a `registraOfferta`. Il controller non interpreta: decide il dominio
+- [X] T009 [US1] In `src/main/resources/static/telefono/app.js`, far inviare ai pulsanti rapidi `offertaBase = lotto.offertaCorrente != null ? lotto.offertaCorrente : 0`, letto dallo snapshot su cui il pulsante è stato disegnato. L'input a importo libero **non** deve mai inviare il campo
+- [X] T010 [US1] In `src/main/resources/static/telefono/app.js`, disabilitare tutti i pulsanti rapidi subito dopo un tap e riabilitarli solo all'arrivo del successivo snapshot, riconnessione compresa. Non toccare l'input a importo libero
+- [X] T011 [US1] In `src/main/resources/static/telefono/app.js`, verificare che il motivo `"l'offerta e' cambiata mentre rilanciavi"` arrivi all'utente attraverso il percorso di rifiuto già esistente della feature 1, senza aggiungerne un secondo
 - [ ] T012 [US1] Eseguire quickstart §Gruppo 1 e la §"verifica che conta più di tutte" (riavvio)
+  - Parte server verificata con `curl`: scenari 1.2, 1.3, 1.4, 1.5, la precedenza della guardia sull'importo non valido e il riavvio con ricostruzione dello stato. Restano da provare con due dispositivi reali gli scenari 1.1, 1.6 e 1.7, che vivono nel telefono
 
 **Checkpoint**: la guardia funziona con due dispositivi reali; le offerte a importo digitato
 si comportano esattamente come prima.

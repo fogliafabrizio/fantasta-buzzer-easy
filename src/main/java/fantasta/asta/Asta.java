@@ -380,8 +380,18 @@ public class Asta {
      * serializzazione synchronized: due rilanci concorrenti non possono essere
      * accettati entrambi. L'importo arriva grezzo (Number) proprio per poter
      * distinguere un intero valido da un decimale o da un valore assente.
+     * <p>
+     * offertaBase e' la guardia dei pulsanti rapidi: e' l'offerta corrente che il
+     * telefono aveva a schermo quando il pulsante e' stato disegnato. Se nel frattempo
+     * l'offerta e' cambiata, il rilancio calcolato su quel valore non e' piu' quello
+     * che il partecipante credeva di fare e viene rifiutato. Vale null quando l'importo
+     * e' stato digitato liberamente: in quel caso non c'e' nessuna guardia e la
+     * valutazione e' identica a prima. Vale 0 quando il pulsante e' stato premuto su un
+     * lotto senza offerte, valore libero da ambiguita' perche' le offerte valide sono
+     * maggiori o uguali a 1.
      */
-    public synchronized Esito registraOfferta(int idLotto, String codicePartecipante, Number importoGrezzo) {
+    public synchronized Esito registraOfferta(int idLotto, String codicePartecipante,
+                                              Number importoGrezzo, Integer offertaBase) {
         if (!attiva) {
             return Esito.rifiuto409("Nessuna asta attiva");
         }
@@ -406,6 +416,14 @@ public class Asta {
             default:
                 break;
         }
+        // L'offerta su cui si misurano sia la guardia sia la regola del rilancio: una
+        // sola espressione, letta qui e riusata piu' sotto.
+        int offertaCorrente = lottoCorrente.getOffertaCorrente() != null ? lottoCorrente.getOffertaCorrente() : 0;
+        if (offertaBase != null && offertaBase != offertaCorrente) {
+            log.info("Rilancio rifiutato: lotto {}, partecipante {} ({}), offerta dichiarata {}, offerta corrente {}",
+                    idLotto, codicePartecipante, p.getNome(), offertaBase, offertaCorrente);
+            return Esito.rifiuto409("l'offerta e' cambiata mentre rilanciavi");
+        }
         if (importoGrezzo == null) {
             return Esito.rifiuto400("importo non valido");
         }
@@ -413,8 +431,7 @@ public class Asta {
         if (importoReale < 1 || importoReale != Math.rint(importoReale)) {
             return Esito.rifiuto400("importo non valido");
         }
-        int offertaBase = lottoCorrente.getOffertaCorrente() != null ? lottoCorrente.getOffertaCorrente() : 0;
-        if (importoReale <= offertaBase) {
+        if (importoReale <= offertaCorrente) {
             return Esito.rifiuto409("offerta non superiore all'offerta corrente");
         }
         if (importoReale > p.getCrediti()) {

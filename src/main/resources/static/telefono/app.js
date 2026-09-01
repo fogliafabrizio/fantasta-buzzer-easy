@@ -46,6 +46,14 @@
     // risultati liberi e MAX_NON_DISPONIBILI tra presi e fuori lista.
     var MAX_LIBERI = 40;
     var MAX_NON_DISPONIBILI = 15;
+    // Dopo un tap su un pulsante rapido i pulsanti restano spenti fino al prossimo
+    // snapshot: un doppio tap non puo' produrre due offerte, e finche' non si sa come e'
+    // andata non ha senso rilanciare su un'offerta che potrebbe gia' essere cambiata.
+    // Si riaccendono solo all'arrivo di uno snapshot (riconnessione compresa) oppure
+    // quando il server ha risposto con un rifiuto: in quel caso nessuno snapshot
+    // arriverebbe, e i pulsanti resterebbero spenti per sempre.
+    var rapidiBloccati = false;
+
     var filtroNome = "";
     var filtroRuolo = "";          // "" = tutti i ruoli
     var firmaRicerca = null;       // ultimo HTML disegnato nei risultati, per non ridisegnarlo uguale
@@ -197,10 +205,16 @@
             btn.className = "btn-rapido";
             btn.setAttribute("data-incremento", incremento);
             btn.innerHTML = "+" + incremento + '<span class="assoluto"></span>';
-            // L'importo assoluto (data-importo) viene aggiornato in posto da aggiornaOfferta;
-            // il click lo legge al momento, quindi il gestore si aggancia una volta sola.
+            // L'importo assoluto (data-importo) e l'offerta su cui e' stato calcolato
+            // (data-base) vengono aggiornati in posto da aggiornaOfferta; il click li
+            // legge al momento, quindi il gestore si aggancia una volta sola. data-base
+            // e' l'offerta dello snapshot su cui il pulsante e' stato disegnato: viaggia
+            // con l'offerta cosi' il server puo' accorgersi se nel frattempo e' cambiata.
             btn.addEventListener("click", function () {
-                inviaOfferta(idLotto, parseInt(this.getAttribute("data-importo"), 10));
+                var importo = parseInt(this.getAttribute("data-importo"), 10);
+                var base = parseInt(this.getAttribute("data-base"), 10);
+                bloccaRapidi();
+                inviaOfferta(idLotto, importo, base);
             });
             contenitore.appendChild(btn);
         }
@@ -210,7 +224,9 @@
             var val = input.value.trim();
             var n = val === "" ? null : Number(val);
             if (n !== null && isNaN(n)) n = null;
-            inviaOfferta(idLotto, n);
+            // Importo digitato liberamente: nessuna offerta base, quindi nessuna
+            // guardia. I pulsanti rapidi non si toccano.
+            inviaOfferta(idLotto, n, null);
         });
     }
 
@@ -250,6 +266,7 @@
             var incremento = parseInt(btns[i].getAttribute("data-incremento"), 10);
             var assoluto = base + incremento;
             btns[i].setAttribute("data-importo", assoluto);
+            btns[i].setAttribute("data-base", base);
             btns[i].querySelector(".assoluto").textContent = assoluto;
         }
     }
@@ -525,11 +542,25 @@
         elc.textContent = secondi + "s";
     }
 
+    // Blocco immediato dei soli pulsanti rapidi al momento del tap: agisce prima che
+    // parta la richiesta, cosi' il secondo tap di un doppio tap non trova nulla da
+    // premere. L'input a importo libero resta utilizzabile.
+    function bloccaRapidi() {
+        rapidiBloccati = true;
+        abilitaBuzzer(statoLottoCorrente === "APERTO");
+    }
+
+    function sbloccaRapidi() {
+        if (!rapidiBloccati) return;
+        rapidiBloccati = false;
+        abilitaBuzzer(statoLottoCorrente === "APERTO");
+    }
+
     function abilitaBuzzer(aperto) {
         var contenitore = el("buzzer-rapidi");
         if (contenitore) {
             var btns = contenitore.querySelectorAll(".btn-rapido");
-            for (var i = 0; i < btns.length; i++) btns[i].disabled = !aperto;
+            for (var i = 0; i < btns.length; i++) btns[i].disabled = !aperto || rapidiBloccati;
         }
         var input = el("importo-libero");
         if (input) input.disabled = !aperto;
@@ -546,7 +577,19 @@
         scriviCountdown(snapshot.lotto);
     }
 
-    function inviaOfferta(idLotto, importo) {
+    // offertaBase e' l'offerta su cui il rilancio e' stato calcolato, e viene inviata
+    // solo dai pulsanti rapidi. Con null il campo non entra proprio nel corpo: e' cosi'
+    // che il server distingue un importo digitato liberamente, che non ha guardia.
+    function inviaOfferta(idLotto, importo, offertaBase) {
+        var corpo = {
+            idLotto: idLotto,
+            codicePartecipante: codice,
+            importo: importo
+        };
+        if (offertaBase !== null && offertaBase !== undefined && !isNaN(offertaBase)) {
+            corpo.offertaBase = offertaBase;
+        }
+
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "/api/offerta");
         xhr.setRequestHeader("Content-Type", "application/json");
@@ -555,6 +598,8 @@
                 mostraMessaggio("ok", "Offerta di " + importo + " inviata");
                 var input = el("importo-libero");
                 if (input) input.value = "";
+                // Accettata: arrivera' uno snapshot, ed e' quello a riaccendere i
+                // pulsanti rapidi sull'offerta nuova.
             } else {
                 var motivo = "Offerta rifiutata";
                 try {
@@ -562,16 +607,16 @@
                     if (body && body.motivo) motivo = body.motivo;
                 } catch (e) { /* corpo non JSON: si tiene il messaggio generico */ }
                 mostraMessaggio("errore", motivo);
+                // Rifiutata: nessuno snapshot in arrivo per questa richiesta, quindi i
+                // pulsanti vanno riaccesi qui o resterebbero spenti a tempo indefinito.
+                sbloccaRapidi();
             }
         };
         xhr.onerror = function () {
             mostraMessaggio("errore", "Invio offerta fallito: rete non raggiungibile");
+            sbloccaRapidi();
         };
-        xhr.send(JSON.stringify({
-            idLotto: idLotto,
-            codicePartecipante: codice,
-            importo: importo
-        }));
+        xhr.send(JSON.stringify(corpo));
     }
 
     function caricaListone() {
@@ -590,6 +635,11 @@
 
     sse.addEventListener("snapshot", function (e) {
         snapshot = JSON.parse(e.data);
+        // E' arrivato uno stato nuovo: i pulsanti rapidi si riaccendono qui, ridisegnati
+        // sull'offerta di questo snapshot. Vale anche per il primo snapshot dopo una
+        // riconnessione, che e' l'unica cosa che riaccende i pulsanti dopo un tap
+        // partito mentre la rete stava cadendo.
+        rapidiBloccati = false;
         if (!listone) {
             caricaListone();
         }
