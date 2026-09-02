@@ -282,6 +282,30 @@ public class ConsoleController {
         return ResponseEntity.ok(Map.of("stato", "aggiudicato"));
     }
 
+    /**
+     * Annulla l'ultima aggiudicazione annullabile. L'idLotto nel body e' quello letto
+     * dallo snapshot: il server verifica che sia ancora la cima della pila e rifiuta se
+     * nel frattempo e' cambiata. Il body inviato <em>e'</em> la conferma: la console
+     * mostra la propria schermata di conferma prima di chiamare.
+     */
+    @PostMapping("/api/console/annulla-aggiudicazione")
+    public ResponseEntity<?> annullaAggiudicazione(@RequestBody Map<String, Object> body) {
+        Object idRaw = body.get("idLotto");
+        if (!(idRaw instanceof Number idLotto)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("errore", "Il campo idLotto e' obbligatorio e deve essere numerico"));
+        }
+
+        Esito esito = asta.annullaAggiudicazione(idLotto.intValue());
+        if (!esito.accettata()) {
+            return ResponseEntity.status(esito.statusHttp())
+                    .body(Map.of("errore", esito.motivo()));
+        }
+
+        sseController.broadcast();
+        return ResponseEntity.ok(Map.of("stato", "annullata"));
+    }
+
     @PostMapping("/api/console/riapri")
     public ResponseEntity<?> riapriLotto(@RequestBody Map<String, Object> body) {
         Object modalitaRaw = body.get("modalita");

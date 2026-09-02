@@ -1,4 +1,4 @@
----
+﻿---
 
 description: "Task list per Correzioni del Banditore e Rifiniture"
 ---
@@ -50,10 +50,16 @@ nuovo, nessun endpoint: dopo questa fase il comportamento osservabile è identic
 **⚠️ Blocca US2, US3, US4, US5.** **Non blocca US1**, che non tocca la proiezione: per
 l'ordine imposto dalla costituzione (appendice A) e dal piano, US1 si fa comunque per prima.
 
-- [ ] T002 [P] Creare il record `Aggiudicazione(int idLotto, int idCalciatore)` in `src/main/java/fantasta/asta/Aggiudicazione.java`, con javadoc che spiega che è una voce della pila degli annullabili
+- [X] T002 [P] Creare il record `Aggiudicazione(int idLotto, int idCalciatore)` in `src/main/java/fantasta/asta/Aggiudicazione.java`, con javadoc che spiega che è una voce della pila degli annullabili
 - [ ] T003 [P] In `src/main/java/fantasta/asta/Partecipante.java`: aggiungere il campo `rettificaCrediti` (int, default 0), cambiare `getCrediti()` in `creditiTotali - getCreditiSpesi() + rettificaCrediti`, aggiungere `applicaRettificaCrediti(int delta)` e `Integer rimuovi(int idCalciatore)` che cerca la `VoceRosa` nei quattro ruoli, la toglie e ne restituisce il prezzo (`null` se assente). Aggiornare il javadoc di classe: la formula dei crediti non è più solo `totali − spesi`
-- [ ] T004 In `src/main/java/fantasta/asta/Asta.java`: aggiungere il campo `Deque<Aggiudicazione> annullabili`, inizializzarlo a vuoto in `creaAsta` e in `ricostruisciDaLog` accanto a `calciatoriAssegnati`, e impilare `(idLotto, idCalciatore)` nel ramo `LottoAggiudicato` di `applicaEvento`. Il push va **dentro** la guardia già esistente `if (lottoCorrente != null && lottoCorrente.getIdLotto() == lag.getIdLotto())`, accanto ad `acquista` e `calciatoriAssegnati.add`: fuori da quella guardia si creerebbe una voce in pila senza la corrispondente voce di rosa, e l'annullamento cercherebbe poi di rimuovere qualcosa che non c'è. Live e rilettura sbaglierebbero allo stesso modo, quindi la verifica di riavvio **non** lo scoprirebbe
-- [ ] T005 In `src/main/java/fantasta/asta/Asta.java`: aggiungere il metodo privato `String correzioniAmmesse()` che restituisce `null` se le correzioni sono ammesse, altrimenti il motivo del rifiuto. Blocca `APERTO`, `SCADUTO`, `IN_PAUSA`; **non** blocca `AGGIUDICATO` né l'assenza di lotto. Motivo: `"le correzioni sono possibili solo quando non c'e' un lotto in corso"`. Cinque chiamanti reali in arrivo, uno per correzione
+  - Fatta la parte che serve all'annullamento: `trovaVoce(int idCalciatore)` (lettura, usata
+    da `annullaAggiudicazione` e da `generaSnapshot`) e `rimuovi(int idCalciatore)`.
+    `rettificaCrediti` e `applicaRettificaCrediti` restano da fare **con US4**: sono la
+    primitiva della restituzione a piacere, nessun evento di questa fase le tocca, e
+    introdurre ora un accumulatore sempre a zero cambierebbe la formula dei crediti senza
+    che nulla la eserciti. Il javadoc di classe si aggiorna insieme a loro
+- [X] T004 In `src/main/java/fantasta/asta/Asta.java`: aggiungere il campo `Deque<Aggiudicazione> annullabili`, inizializzarlo a vuoto in `creaAsta` e in `ricostruisciDaLog` accanto a `calciatoriAssegnati`, e impilare `(idLotto, idCalciatore)` nel ramo `LottoAggiudicato` di `applicaEvento`. Il push va **dentro** la guardia già esistente `if (lottoCorrente != null && lottoCorrente.getIdLotto() == lag.getIdLotto())`, accanto ad `acquista` e `calciatoriAssegnati.add`: fuori da quella guardia si creerebbe una voce in pila senza la corrispondente voce di rosa, e l'annullamento cercherebbe poi di rimuovere qualcosa che non c'è. Live e rilettura sbaglierebbero allo stesso modo, quindi la verifica di riavvio **non** lo scoprirebbe
+- [X] T005 In `src/main/java/fantasta/asta/Asta.java`: aggiungere il metodo privato `String correzioniAmmesse()` che restituisce `null` se le correzioni sono ammesse, altrimenti il motivo del rifiuto. Blocca `APERTO`, `SCADUTO`, `IN_PAUSA`; **non** blocca `AGGIUDICATO` né l'assenza di lotto. Motivo: `"le correzioni sono possibili solo quando non c'e' un lotto in corso"`. Cinque chiamanti reali in arrivo, uno per correzione
 
 **Checkpoint**: `mvn -q package` compila, il server riparte, lo stato ricostruito è identico
 a T001 e `creditiInCircolazione` non si è mosso. Nulla è cambiato per l'utente.
@@ -100,17 +106,25 @@ allineati senza ricaricare.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Creare `src/main/java/fantasta/eventi/AggiudicazioneAnnullata.java` con i campi `idLotto`, `idCalciatore`, `codicePartecipante`, `importoRestituito`, costruttore vuoto per Jackson e costruttore completo con `super("AGGIUDICAZIONE_ANNULLATA", sequenza)`, sullo stampo di `LottoAggiudicato`
-- [ ] T014 [US2] Registrare `AggiudicazioneAnnullata` in `@JsonSubTypes` su `src/main/java/fantasta/eventi/Evento.java` con nome `"AGGIUDICAZIONE_ANNULLATA"`
-- [ ] T015 [US2] In `src/main/java/fantasta/asta/Asta.java`, aggiungere il ramo `AggiudicazioneAnnullata` in `applicaEvento` con i cinque effetti di [data-model.md](data-model.md#aggiudicazione_annullata): `rimuovi` la voce di rosa, `calciatoriAssegnati.remove`, togliere la voce dalla pila, e azzerare `lottoCorrente` **se e solo se** `lottoCorrente.getIdLotto() == idLotto`. Nessuna modifica a `rettificaCrediti`. Guardie difensive come nei rami della feature 1 (`if (p != null)`, esito di `rimuovi` non nullo): in rilettura non c'è un `Esito` a proteggere, e un log inatteso deve produrre una riga di log in italiano, non un NPE all'avvio
-- [ ] T016 [US2] In `src/main/java/fantasta/asta/Asta.java`, implementare `public synchronized Esito annullaAggiudicazione(int idLotto)`: asta attiva → `correzioniAmmesse()` → pila non vuota (`409 "non c'e' nessuna aggiudicazione da annullare"`) → `idLotto` uguale alla cima (`409 "l'ultima aggiudicazione annullabile e' cambiata"`) → leggere dalla proiezione **corrente** chi ha il calciatore e a che prezzo → append + `applicaEvento` → riga di log in italiano
-- [ ] T017 [US2] In `src/main/java/fantasta/web/Snapshot.java`, aggiungere il record annidato `SnapshotAnnullabile(int idLotto, int idCalciatore, String codicePartecipante, int importo)` e il campo `annullabile` (nullable) al record `Snapshot`
-- [ ] T018 [US2] In `src/main/java/fantasta/asta/Asta.java`, popolare `annullabile` in `generaSnapshot` dalla cima della pila incrociata con la proiezione corrente (proprietario e prezzo di adesso, non quelli di `LOTTO_AGGIUDICATO`); `null` se la pila è vuota
-- [ ] T018b [US2] In `console/src/app/services/sse.service.ts`, aggiungere l'interfaccia `SnapshotAnnullabile { idLotto: number; idCalciatore: number; codicePartecipante: string; importo: number }` e il campo `annullabile: SnapshotAnnullabile | null` all'interfaccia `Snapshot`. Il tipo è nullable per davvero: è `null` ogni volta che non c'è nulla da annullare, ed è da lì che la console decide se disegnare il pulsante
-- [ ] T019 [US2] In `src/main/java/fantasta/web/ConsoleController.java`, aggiungere `POST /api/console/annulla-aggiudicazione` con body `{idLotto}`, validazione del campo, mappatura dell'`Esito` sui codici di [contracts/endpoints.md](contracts/endpoints.md#post-apiconsoleannulla-aggiudicazione) e `sseController.broadcast()` dopo il successo
-- [ ] T020 [US2] Creare `console/src/app/console/correzioni/correzioni.component.ts` con la sola sezione annullamento: pulsante disponibile solo quando `annullabile` non è null, dialog PrimeNG di conferma che dice quale calciatore torna libero (nome risolto dal listone locale), a chi tornano quanti crediti e quali saranno i suoi crediti residui dopo
-- [ ] T021 [US2] Montare `<app-correzioni>` in `console/src/app/app.component.ts` fra `app-lotto-corrente` e `app-tabella-partecipanti`
+- [X] T013 [P] [US2] Creare `src/main/java/fantasta/eventi/AggiudicazioneAnnullata.java` con i campi `idLotto`, `idCalciatore`, `codicePartecipante`, `importoRestituito`, costruttore vuoto per Jackson e costruttore completo con `super("AGGIUDICAZIONE_ANNULLATA", sequenza)`, sullo stampo di `LottoAggiudicato`
+- [X] T014 [US2] Registrare `AggiudicazioneAnnullata` in `@JsonSubTypes` su `src/main/java/fantasta/eventi/Evento.java` con nome `"AGGIUDICAZIONE_ANNULLATA"`
+- [X] T015 [US2] In `src/main/java/fantasta/asta/Asta.java`, aggiungere il ramo `AggiudicazioneAnnullata` in `applicaEvento` con i cinque effetti di [data-model.md](data-model.md#aggiudicazione_annullata): `rimuovi` la voce di rosa, `calciatoriAssegnati.remove`, togliere la voce dalla pila, e azzerare `lottoCorrente` **se e solo se** `lottoCorrente.getIdLotto() == idLotto`. Nessuna modifica a `rettificaCrediti`. Guardie difensive come nei rami della feature 1 (`if (p != null)`, esito di `rimuovi` non nullo): in rilettura non c'è un `Esito` a proteggere, e un log inatteso deve produrre una riga di log in italiano, non un NPE all'avvio
+- [X] T016 [US2] In `src/main/java/fantasta/asta/Asta.java`, implementare `public synchronized Esito annullaAggiudicazione(int idLotto)`: asta attiva → `correzioniAmmesse()` → pila non vuota (`409 "non c'e' nessuna aggiudicazione da annullare"`) → `idLotto` uguale alla cima (`409 "l'ultima aggiudicazione annullabile e' cambiata"`) → leggere dalla proiezione **corrente** chi ha il calciatore e a che prezzo → append + `applicaEvento` → riga di log in italiano
+- [X] T017 [US2] In `src/main/java/fantasta/web/Snapshot.java`, aggiungere il record annidato `SnapshotAnnullabile(int idLotto, int idCalciatore, String codicePartecipante, int importo)` e il campo `annullabile` (nullable) al record `Snapshot`
+- [X] T018 [US2] In `src/main/java/fantasta/asta/Asta.java`, popolare `annullabile` in `generaSnapshot` dalla cima della pila incrociata con la proiezione corrente (proprietario e prezzo di adesso, non quelli di `LOTTO_AGGIUDICATO`); `null` se la pila è vuota
+- [X] T018b [US2] In `console/src/app/services/sse.service.ts`, aggiungere l'interfaccia `SnapshotAnnullabile { idLotto: number; idCalciatore: number; codicePartecipante: string; importo: number }` e il campo `annullabile: SnapshotAnnullabile | null` all'interfaccia `Snapshot`. Il tipo è nullable per davvero: è `null` ogni volta che non c'è nulla da annullare, ed è da lì che la console decide se disegnare il pulsante
+- [X] T019 [US2] In `src/main/java/fantasta/web/ConsoleController.java`, aggiungere `POST /api/console/annulla-aggiudicazione` con body `{idLotto}`, validazione del campo, mappatura dell'`Esito` sui codici di [contracts/endpoints.md](contracts/endpoints.md#post-apiconsoleannulla-aggiudicazione) e `sseController.broadcast()` dopo il successo
+- [X] T020 [US2] Creare `console/src/app/console/correzioni/correzioni.component.ts` con la sola sezione annullamento: pulsante disponibile solo quando `annullabile` non è null, dialog PrimeNG di conferma che dice quale calciatore torna libero (nome risolto dal listone locale), a chi tornano quanti crediti e quali saranno i suoi crediti residui dopo
+- [X] T021 [US2] Montare `<app-correzioni>` in `console/src/app/app.component.ts` fra `app-lotto-corrente` e `app-tabella-partecipanti`
 - [ ] T022 [US2] Eseguire quickstart §Gruppo 2, la §"verifica che conta più di tutte" controllando che dopo il riavvio la prossima annullabile sia la stessa, e la sequenza combinata **R1** di §"Le tre sequenze combinate"
+  - Parte server verificata con `curl` su una copia del log della feature 1: scenari 2.2
+    (quattro annullamenti a ritroso, crediti e rose tornati ai valori iniziali), 2.3
+    (`annullabile` è `null` a pila vuota, e il comando risponde `409`), 2.4 (rifiuto con
+    un lotto `SCADUTO` in corso), 2.9 (le `LOTTO_AGGIUDICATO` originali immutate, le
+    `AGGIUDICAZIONE_ANNULLATA` in fondo), la guardia sull'`idLotto` non in cima, il campo
+    mancante, e il riavvio con stato e prossima annullabile identici e nessuna riga in più.
+    Restano da provare a mano dalla console gli scenari 2.1, 2.5, 2.6, 2.7 e la R1, che
+    vivono nell'interfaccia e nei telefoni
 
 **Checkpoint**: annullamento ripetibile all'indietro, non disponibile senza aggiudicazioni
 né con un lotto in corso, disponibile con la scheda `AGGIUDICATO` a video.

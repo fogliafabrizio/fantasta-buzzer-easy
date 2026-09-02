@@ -5,6 +5,7 @@ import { QrDisplayComponent } from './console/qr-display/qr-display.component';
 import { LottoCorrenteComponent } from './console/lotto-corrente/lotto-corrente.component';
 import { RicercaCalciatoreComponent } from './console/ricerca-calciatore/ricerca-calciatore.component';
 import { TabellaPartecipantiComponent } from './console/tabella-partecipanti/tabella-partecipanti.component';
+import { CorrezioniComponent } from './console/correzioni/correzioni.component';
 import { SseService } from './services/sse.service';
 
 @Component({
@@ -12,7 +13,8 @@ import { SseService } from './services/sse.service';
   standalone: true,
   imports: [
     CommonModule, CreaAstaComponent, QrDisplayComponent,
-    LottoCorrenteComponent, RicercaCalciatoreComponent, TabellaPartecipantiComponent
+    LottoCorrenteComponent, RicercaCalciatoreComponent, TabellaPartecipantiComponent,
+    CorrezioniComponent
   ],
   template: `
     <div class="container">
@@ -26,6 +28,7 @@ import { SseService } from './services/sse.service';
         }
         <app-lotto-corrente></app-lotto-corrente>
         <app-ricerca-calciatore></app-ricerca-calciatore>
+        <app-correzioni></app-correzioni>
         <app-tabella-partecipanti></app-tabella-partecipanti>
         <app-qr-display></app-qr-display>
       }

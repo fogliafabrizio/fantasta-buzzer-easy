@@ -50,6 +50,11 @@ public class Asta {
     private boolean banditorePartecipa;
     private Map<String, Partecipante> partecipanti;
     private Set<Integer> calciatoriAssegnati;
+    // Pila delle aggiudicazioni ancora annullabili, dalla meno recente (fondo) alla piu'
+    // recente (cima). La prossima annullabile e' la cima, e solo quella. E' proiezione
+    // pura: nasce vuota, cresce e cala unicamente dentro applicaEvento, quindi dal vivo e
+    // in rilettura si comporta allo stesso modo.
+    private Deque<Aggiudicazione> annullabili;
     private Lotto lottoCorrente;
     private int prossimoIdLotto;
     private long sequenza;
@@ -130,6 +135,7 @@ public class Asta {
 
         this.partecipanti = new LinkedHashMap<>();
         this.calciatoriAssegnati = new LinkedHashSet<>();
+        this.annullabili = new ArrayDeque<>();
         this.lottoCorrente = null;
         this.prossimoIdLotto = 1;
         this.sequenza = 0;
@@ -227,6 +233,11 @@ public class Asta {
                 if (vincitore != null && c != null) {
                     vincitore.acquista(c.ruolo(), lag.getIdCalciatore(), lag.getImporto());
                     calciatoriAssegnati.add(lag.getIdCalciatore());
+                    // La pila cresce qui dentro, accanto alla voce di rosa che rende
+                    // annullabile: impilare fuori da questa guardia significherebbe avere
+                    // in pila un'aggiudicazione senza la corrispondente voce di rosa, e
+                    // l'annullamento cercherebbe poi di rimuovere qualcosa che non c'e'.
+                    annullabili.push(new Aggiudicazione(lag.getIdLotto(), lag.getIdCalciatore()));
                 }
                 // Il lotto non sparisce: resta in lottoCorrente come AGGIUDICATO cosi' la
                 // scheda con calciatore, vincitore e importo continua a mostrarsi finche'
@@ -235,6 +246,25 @@ public class Asta {
             }
         } else if (evento instanceof LottoAnnullato lan) {
             if (lottoCorrente != null && lottoCorrente.getIdLotto() == lan.getIdLotto()) {
+                this.lottoCorrente = null;
+            }
+        } else if (evento instanceof AggiudicazioneAnnullata aan) {
+            // Qui non c'e' un Esito a proteggere la proiezione: in rilettura la riga
+            // arriva com'e' scritta. Le guardie servono a far uscire un log in italiano
+            // invece di un NPE all'avvio, come nei rami della feature 1.
+            Partecipante p = partecipanti.get(aan.getCodicePartecipante());
+            if (p == null) {
+                log.warn("Annullamento del lotto {}: partecipante {} sconosciuto, nessuna rosa modificata",
+                        aan.getIdLotto(), aan.getCodicePartecipante());
+            } else if (p.rimuovi(aan.getIdCalciatore()) == null) {
+                log.warn("Annullamento del lotto {}: il calciatore {} non era nella rosa di {} ({}), nessuna voce rimossa",
+                        aan.getIdLotto(), aan.getIdCalciatore(), aan.getCodicePartecipante(), p.getNome());
+            }
+            calciatoriAssegnati.remove(aan.getIdCalciatore());
+            annullabili.removeIf(a -> a.idLotto() == aan.getIdLotto());
+            // La scheda dell'esito ancora a video non puo' restare a dire "vinto da Marco
+            // per 36" mentre quel calciatore e' tornato libero: sparisce.
+            if (lottoCorrente != null && lottoCorrente.getIdLotto() == aan.getIdLotto()) {
                 this.lottoCorrente = null;
             }
         }
@@ -259,6 +289,7 @@ public class Asta {
         this.calciatori = calciatori;
         this.partecipanti = new LinkedHashMap<>();
         this.calciatoriAssegnati = new LinkedHashSet<>();
+        this.annullabili = new ArrayDeque<>();
         this.lottoCorrente = null;
         this.prossimoIdLotto = 1;
         this.sequenza = 0;
@@ -305,8 +336,110 @@ public class Asta {
                     lottoCorrente.getSecondiResidui());
         }
 
+        // La cima della pila incrociata con la proiezione corrente: proprietario e prezzo
+        // di adesso, non quelli con cui il lotto fu aggiudicato. Il client disegna il
+        // pulsante quando questo campo c'e' e mostra questi numeri nella conferma, senza
+        // dedurre nulla. Se la cima non risulta in nessuna rosa il campo resta null:
+        // meglio nessuna azione offerta che un'azione che non saprebbe cosa restituire.
+        Snapshot.SnapshotAnnullabile sa = null;
+        Aggiudicazione cima = annullabili.peek();
+        if (cima != null) {
+            Partecipante proprietario = proprietarioDi(cima.idCalciatore());
+            if (proprietario != null) {
+                sa = new Snapshot.SnapshotAnnullabile(cima.idLotto(), cima.idCalciatore(),
+                        proprietario.getCodice(), proprietario.trovaVoce(cima.idCalciatore()).prezzo());
+            } else {
+                log.warn("Aggiudicazione annullabile del lotto {}: il calciatore {} non risulta in nessuna rosa, "
+                        + "l'annullamento non viene proposto", cima.idLotto(), cima.idCalciatore());
+            }
+        }
+
         return new Snapshot(sequenza, sl, sp, List.copyOf(calciatoriAssegnati),
-                creditiInCircolazione());
+                creditiInCircolazione(), sa);
+    }
+
+    /**
+     * Il partecipante che ha quel calciatore in rosa <em>adesso</em>, o null se il
+     * calciatore e' libero. Un calciatore sta in al piu' una rosa, quindi la risposta e'
+     * al piu' una.
+     */
+    private Partecipante proprietarioDi(int idCalciatore) {
+        for (Partecipante p : partecipanti.values()) {
+            if (p.trovaVoce(idCalciatore) != null) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Precondizione comune a tutte le correzioni del banditore: null se sono ammesse,
+     * altrimenti il motivo del rifiuto. Un lotto APERTO, SCADUTO o IN_PAUSA e' un lotto
+     * ancora in corso e blocca: correggere le rose mentre ci sono offerte in ballo
+     * cambierebbe le carte in tavola a partita aperta. Uno stato AGGIUDICATO invece
+     * <em>non</em> blocca: e' la sola scheda dell'esito rimasta a video, ed e' proprio il
+     * momento in cui il banditore si accorge dell'errore.
+     */
+    private String correzioniAmmesse() {
+        if (lottoCorrente != null && lottoCorrente.getStato() != StatoLotto.AGGIUDICATO) {
+            return "le correzioni sono possibili solo quando non c'e' un lotto in corso";
+        }
+        return null;
+    }
+
+    /**
+     * Annulla l'aggiudicazione in cima alla pila degli annullabili: il calciatore torna
+     * libero e i crediti tornano a chi li ha versati. Si puo' ripetere all'indietro,
+     * un'aggiudicazione alla volta.
+     * <p>
+     * L'idLotto arriva dal client e deve coincidere con la cima: e' la guardia contro il
+     * doppio click e contro una console rimasta indietro, la stessa idea della guardia
+     * offertaBase applicata al banditore.
+     * <p>
+     * Chi riceve i crediti e quanti si leggono dalla proiezione corrente sotto il lock,
+     * mai dall'evento LOTTO_AGGIUDICATO originale: dopo una rettifica il calciatore puo'
+     * stare in un'altra rosa e a un altro prezzo, e restituire il prezzo di allora a chi
+     * non l'ha pagato creerebbe crediti dal nulla.
+     */
+    public synchronized Esito annullaAggiudicazione(int idLotto) {
+        if (!attiva) {
+            return Esito.rifiuto409("Nessuna asta attiva");
+        }
+        String motivo = correzioniAmmesse();
+        if (motivo != null) {
+            return Esito.rifiuto409(motivo);
+        }
+        Aggiudicazione cima = annullabili.peek();
+        if (cima == null) {
+            return Esito.rifiuto409("non c'e' nessuna aggiudicazione da annullare");
+        }
+        if (cima.idLotto() != idLotto) {
+            log.info("Annullamento rifiutato: richiesto il lotto {}, ma l'ultima aggiudicazione annullabile e' il lotto {}",
+                    idLotto, cima.idLotto());
+            return Esito.rifiuto409("l'ultima aggiudicazione annullabile e' cambiata");
+        }
+
+        Partecipante proprietario = proprietarioDi(cima.idCalciatore());
+        if (proprietario == null) {
+            log.warn("Annullamento del lotto {} rifiutato: il calciatore {} non risulta nella rosa di nessuno",
+                    cima.idLotto(), cima.idCalciatore());
+            return Esito.rifiuto409("il calciatore dell'ultima aggiudicazione non e' nella rosa di nessuno");
+        }
+        int importoRestituito = proprietario.trovaVoce(cima.idCalciatore()).prezzo();
+
+        long seq = ++this.sequenza;
+        AggiudicazioneAnnullata evento = new AggiudicazioneAnnullata(seq, cima.idLotto(),
+                cima.idCalciatore(), proprietario.getCodice(), importoRestituito);
+        logEventi.append(evento);
+        applicaEvento(evento);
+
+        Calciatore c = trovaCalciatore(cima.idCalciatore());
+        log.info("Aggiudicazione del lotto {} annullata: il calciatore {} ({}) torna libero, "
+                + "{} crediti restituiti a {} ({}), che passa da {} a {} crediti residui",
+                cima.idLotto(), cima.idCalciatore(), c != null ? c.nome() : "non nel listone",
+                importoRestituito, proprietario.getNome(), proprietario.getCodice(),
+                proprietario.getCrediti() - importoRestituito, proprietario.getCrediti());
+        return Esito.ok();
     }
 
     /**

@@ -68,4 +68,39 @@ public class Partecipante {
     public void acquista(Ruolo ruolo, int idCalciatore, int prezzo) {
         rosa.get(ruolo).add(new VoceRosa(idCalciatore, prezzo));
     }
+
+    /**
+     * Cerca nei quattro ruoli la voce di rosa di un calciatore e la restituisce, oppure
+     * null se il calciatore non e' in questa rosa. Un calciatore non puo' comparire due
+     * volte in una rosa ne' in due rose diverse, quindi la voce trovata e' al piu' una.
+     */
+    public VoceRosa trovaVoce(int idCalciatore) {
+        for (List<VoceRosa> voci : rosa.values()) {
+            for (VoceRosa v : voci) {
+                if (v.idCalciatore() == idCalciatore) {
+                    return v;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Toglie dalla rosa la voce del calciatore e restituisce il prezzo che portava, oppure
+     * null se il calciatore non era in rosa. E' l'inverso di {@link #acquista}: i crediti
+     * risalgono da soli, perche' sono una formula sulla rosa e non un contatore a parte.
+     */
+    public Integer rimuovi(int idCalciatore) {
+        for (List<VoceRosa> voci : rosa.values()) {
+            Iterator<VoceRosa> it = voci.iterator();
+            while (it.hasNext()) {
+                VoceRosa v = it.next();
+                if (v.idCalciatore() == idCalciatore) {
+                    it.remove();
+                    return v.prezzo();
+                }
+            }
+        }
+        return null;
+    }
 }

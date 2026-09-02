@@ -26,6 +26,19 @@ export interface SnapshotPartecipante {
   rosa: Rosa;
 }
 
+/**
+ * L'aggiudicazione che il banditore puo' annullare adesso. `codicePartecipante` e `importo`
+ * sono chi ha il calciatore in rosa adesso e a che prezzo, non il vincitore del lotto di
+ * allora: e' quello che l'annullamento rimette a posto. `idLotto` torna indietro nel POST
+ * come guardia contro il doppio click.
+ */
+export interface SnapshotAnnullabile {
+  idLotto: number;
+  idCalciatore: number;
+  codicePartecipante: string;
+  importo: number;
+}
+
 export interface Snapshot {
   sequenza: number;
   lotto: SnapshotLotto | null;
@@ -36,6 +49,12 @@ export interface Snapshot {
    * i partecipanti. Non si muove alle aggiudicazioni. Si mostra, non si ricalcola.
    */
   creditiInCircolazione: number;
+  /**
+   * La prossima aggiudicazione annullabile, oppure `null` ogni volta che non c'e' nulla da
+   * annullare. E' da qui che la console decide se disegnare il pulsante: la regola di quali
+   * aggiudicazioni siano annullabili sta solo sul server.
+   */
+  annullabile: SnapshotAnnullabile | null;
 }
 
 @Injectable({ providedIn: 'root' })
